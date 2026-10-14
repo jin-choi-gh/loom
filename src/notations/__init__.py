@@ -1,6 +1,6 @@
 from models import Notation
 
 from .metre_text import MetreText
-from .poem_display import PoemDisplay
+from .tei_display import TeiDisplay
 
-NOTATIONS: tuple[Notation, ...] = (PoemDisplay(), MetreText())
+NOTATIONS: tuple[Notation, ...] = (TeiDisplay(), MetreText())

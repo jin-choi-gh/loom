@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from models import (
-    Alignment,
+    MatchingRule,
     Line,
     Notation,
     Rank,
@@ -22,18 +22,18 @@ POEM = Rank(name="poem")
 STANZA = Rank(name="stanza", parents=frozenset({"poem"}))
 LINE = Rank(name="line", parents=frozenset({"stanza"}), values=None)
 
-EXACT = Alignment(
+EXACT = MatchingRule(
     compare=lambda a, b: a == b,
     may_skip=lambda c: False,
     line_break_matches=None,
 )
 
 
-class PoemDisplay(Notation):
-    name = "poem-display"
-    suffix = ".display.xml"
+class TeiDisplay(Notation):
+    name = "tei-display"
+    suffix = ".tei-display.xml"
     ranks = {rank.name: rank for rank in (POEM, STANZA, LINE)}
-    alignment = EXACT
+    matching_rule = EXACT
     can_be_base = True
 
     def read(self, representation: Representation) -> tuple[UnitDescription, ...]:

@@ -85,7 +85,7 @@ class Notation:
     name: str
     suffix: str
     ranks: dict[str, Rank]
-    alignment: Alignment
+    matching_rule: MatchingRule
     can_be_base: bool
 
     def read(self, representation: Representation) -> tuple[UnitDescription, ...]:
@@ -157,12 +157,12 @@ class Schema:
 class VariantTable:
     """Spelling variants the substrate may be matched against (e.g. oeconomy → economy).
 
-    Not designed yet: a placeholder so Alignment can name its field.
+    Not designed yet: a placeholder so MatchingRule can name its field.
     """
 
 
 @dataclass(frozen=True)
-class Alignment:
+class MatchingRule:
     compare: Callable[[str, str], bool]
     may_skip: Callable[[str], bool]
     line_break_matches: str | None

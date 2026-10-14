@@ -30,7 +30,7 @@ class Matcher:
     def __init__(self, representation: Representation, substrate: Substrate) -> None:
         self.name = representation.name
         self.lines = substrate.lines
-        self.rule = representation.notation.alignment
+        self.rule = representation.notation.matching_rule
         self.cursor = Position(0, 0)
         self.units: list[Unit | None] = []
 

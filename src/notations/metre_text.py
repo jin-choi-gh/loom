@@ -1,7 +1,7 @@
 import re
 
 from models import (
-    Alignment,
+    MatchingRule,
     Notation,
     Rank,
     Representation,
@@ -21,7 +21,7 @@ SYLLABLE = Rank(
     values=frozenset({"stressed", "unstressed"}),
 )
 
-LETTERS = Alignment(
+LETTERS = MatchingRule(
     compare=lambda a, b: a.casefold() == b.casefold(),
     may_skip=lambda c: not c.isalpha(),
     line_break_matches=None,
@@ -32,7 +32,7 @@ class MetreText(Notation):
     name = "metre"
     suffix = ".metre.txt"
     ranks = {rank.name: rank for rank in (VERSE, FOOT, SYLLABLE)}
-    alignment = LETTERS
+    matching_rule = LETTERS
     can_be_base = False
 
     def read(self, representation: Representation) -> tuple[UnitDescription, ...]:
