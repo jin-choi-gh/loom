@@ -3,6 +3,17 @@ from dataclasses import dataclass, field
 from models import Atom, Position, Schema, Span, Substrate, Unit, Version
 
 
+def integrate(
+    substrate: Substrate, schemata: dict[str, Schema], base_schema: str
+) -> Version:
+    """Join schemata over one substrate into a version."""
+    cuts = find_cuts(substrate, schemata)
+    drafts = AtomDrafts(cut_atoms(substrate, cuts))
+    find_membership(drafts, schemata)
+    atoms = tuple(draft.finish(substrate) for draft in drafts.all)
+    return Version(substrate, schemata, atoms, base_schema)
+
+
 @dataclass
 class AtomDraft:
     """An atom while integration is still finding out what it belongs to."""
@@ -68,14 +79,3 @@ def find_membership(drafts: AtomDrafts, schemata: dict[str, Schema]):
             for draft in covered:
                 # a later unit is deeper, so it replaces its parent
                 draft.innermost[schema.name] = unit
-
-
-def integrate(
-    substrate: Substrate, schemata: dict[str, Schema], base_schema: str
-) -> Version:
-    """Join schemata over one substrate into a version."""
-    cuts = find_cuts(substrate, schemata)
-    drafts = AtomDrafts(cut_atoms(substrate, cuts))
-    find_membership(drafts, schemata)
-    atoms = tuple(draft.finish(substrate) for draft in drafts.all)
-    return Version(substrate, schemata, atoms, base_schema)

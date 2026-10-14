@@ -10,6 +10,22 @@ from models import (
 )
 
 
+def match(
+    representation: Representation,
+    descriptions: tuple[UnitDescription, ...],
+    substrate: Substrate,
+) -> Schema:
+    matcher = Matcher(representation, substrate)
+    for d in descriptions:
+        matcher.description(d, parent_id=None)
+
+    matcher.skip()
+    if not matcher.at_end():
+        raise SynthesisError(f"text left over at {matcher.label()}")
+
+    return Schema(representation.name, representation.notation, tuple(matcher.units))
+
+
 class Matcher:
     def __init__(self, representation: Representation, substrate: Substrate) -> None:
         self.name = representation.name
@@ -90,19 +106,3 @@ class Matcher:
         span = Span(first, last)
         self.units[slot] = Unit(self.name, d.local_id, d.rank, span, d.value, parent_id)
         return span
-
-
-def match(
-    representation: Representation,
-    descriptions: tuple[UnitDescription, ...],
-    substrate: Substrate,
-) -> Schema:
-    matcher = Matcher(representation, substrate)
-    for d in descriptions:
-        matcher.description(d, parent_id=None)
-
-    matcher.skip()
-    if not matcher.at_end():
-        raise SynthesisError(f"text left over at {matcher.label()}")
-
-    return Schema(representation.name, representation.notation, tuple(matcher.units))
