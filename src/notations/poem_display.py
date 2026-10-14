@@ -5,8 +5,8 @@ from pathlib import Path
 
 from models import (
     Alignment,
-    Format,
     Line,
+    Notation,
     Rank,
     Representation,
     Substrate,
@@ -29,7 +29,7 @@ EXACT = Alignment(
 )
 
 
-class PoemDisplay(Format):
+class PoemDisplay(Notation):
     name = "poem-display"
     suffix = ".display.xml"
     ranks = {rank.name: rank for rank in (POEM, STANZA, LINE)}

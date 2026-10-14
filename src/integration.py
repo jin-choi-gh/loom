@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from models import Atom, Position, Schema, Span, Substrate, Version, Unit
+from models import Atom, Position, Schema, Span, Substrate, Unit, Version
 
 
 @dataclass
@@ -73,7 +73,7 @@ def find_membership(drafts: AtomDrafts, schemata: dict[str, Schema]):
 def integrate(
     substrate: Substrate, schemata: dict[str, Schema], base_schema: str
 ) -> Version:
-    """Join schemata over one substrate into the textual version."""
+    """Join schemata over one substrate into a version."""
     cuts = find_cuts(substrate, schemata)
     drafts = AtomDrafts(cut_atoms(substrate, cuts))
     find_membership(drafts, schemata)

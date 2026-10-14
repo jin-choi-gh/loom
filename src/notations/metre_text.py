@@ -2,7 +2,7 @@ import re
 
 from models import (
     Alignment,
-    Format,
+    Notation,
     Rank,
     Representation,
     SynthesisError,
@@ -28,7 +28,7 @@ LETTERS = Alignment(
 )
 
 
-class MetreText(Format):
+class MetreText(Notation):
     name = "metre"
     suffix = ".metre.txt"
     ranks = {rank.name: rank for rank in (VERSE, FOOT, SYLLABLE)}

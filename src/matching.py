@@ -14,7 +14,7 @@ class Matcher:
     def __init__(self, representation: Representation, substrate: Substrate) -> None:
         self.name = representation.name
         self.lines = substrate.lines
-        self.rule = representation.format.alignment
+        self.rule = representation.notation.alignment
         self.cursor = Position(0, 0)
         self.units: list[Unit | None] = []
 
@@ -105,4 +105,4 @@ def match(
     if not matcher.at_end():
         raise SynthesisError(f"text left over at {matcher.label()}")
 
-    return Schema(representation.name, representation.format, tuple(matcher.units))
+    return Schema(representation.name, representation.notation, tuple(matcher.units))

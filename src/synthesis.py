@@ -2,31 +2,31 @@ import argparse
 import sys
 from pathlib import Path
 
-from formats import FORMATS
 from integration import integrate
 from matching import match
 from models import (
-    Format,
+    Notation,
     Representation,
     Schema,
     Substrate,
     SynthesisError,
-    Version,
     Unit,
     UnitDescription,
+    Version,
 )
+from notations import NOTATIONS
 
 
-def load(path: Path, formats: tuple[Format, ...] = FORMATS) -> Representation:
+def load(path: Path, notations: tuple[Notation, ...] = NOTATIONS) -> Representation:
     if not path.is_file():
         raise SynthesisError(f"{path}: no such file")
 
-    matches = [f for f in formats if path.name.lower().endswith(f.suffix)]
+    matches = [n for n in notations if path.name.lower().endswith(n.suffix)]
 
     if not matches:
-        known = ", ".join(f.suffix for f in formats) or "none yet"
+        known = ", ".join(n.suffix for n in notations) or "none yet"
         raise SynthesisError(
-            f"{path}: no format for this file (known suffixes: {known})"
+            f"{path}: no notation for this file (known suffixes: {known})"
         )
     chosen = max(matches, key=lambda f: len(f.suffix))
 
@@ -36,18 +36,18 @@ def load(path: Path, formats: tuple[Format, ...] = FORMATS) -> Representation:
     _, _, qualifier = rest.partition(".")
     name = f"{chosen.name}-{qualifier}" if qualifier else chosen.name
 
-    return Representation(path=path, format=chosen, source=source, name=name)
+    return Representation(path=path, notation=chosen, source=source, name=name)
 
 
 def read(representation: Representation) -> tuple[UnitDescription, ...]:
     try:
-        return representation.format.read(representation)
+        return representation.notation.read(representation)
     except SynthesisError as error:
         raise SynthesisError(f"{representation.path}: {error}") from error
 
 
 def choose_base(representations: tuple[Representation, ...]) -> Representation:
-    candidates = [r for r in representations if r.format.can_be_base]
+    candidates = [r for r in representations if r.notation.can_be_base]
 
     if len(candidates) == 1:
         return candidates[0]
@@ -63,7 +63,7 @@ def make_substrate(
     base: Representation, descriptions: tuple[UnitDescription, ...]
 ) -> Substrate:
     try:
-        return base.format.transcribe(descriptions)
+        return base.notation.transcribe(descriptions)
     except SynthesisError as error:
         raise SynthesisError(f"{base.path}: {error}") from error
 

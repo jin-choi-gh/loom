@@ -76,12 +76,12 @@ class Rank:
 @dataclass(frozen=True)
 class Representation:
     path: Path
-    format: Format
+    notation: Notation
     source: str
     name: str
 
 
-class Format:
+class Notation:
     name: str
     suffix: str
     ranks: dict[str, Rank]
@@ -108,7 +108,7 @@ class Unit:
 @dataclass(frozen=True)
 class Schema:
     name: str
-    format: Format
+    notation: Notation
     units: tuple[Unit, ...]
 
     def __post_init__(self) -> None:
