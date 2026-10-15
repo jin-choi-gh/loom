@@ -33,22 +33,34 @@ def load(path: Path, notations: tuple[Notation, ...] = NOTATIONS) -> Representat
     if not path.is_file():
         raise SynthesisError(f"{path}: no such file")
 
-    matches = [n for n in notations if path.name.lower().endswith(n.suffix)]
+    matches = {
+        n: qualifier
+        for n in notations
+        if (qualifier := qualifier_of(path.name, n.suffix)) is not None
+    }
 
     if not matches:
         known = ", ".join(n.suffix for n in notations) or "none yet"
         raise SynthesisError(
             f"{path}: no notation for this file (known suffixes: {known})"
         )
-    chosen = max(matches, key=lambda f: len(f.suffix))
+
+    chosen_notation = max(matches, key=lambda notation: len(notation.suffix))
 
     source = path.read_text(encoding="utf-8-sig")
 
-    rest = path.name[: -len(chosen.suffix)]
-    _, _, qualifier = rest.partition(".")
-    name = f"{chosen.name}-{qualifier}" if qualifier else chosen.name
+    qualifier = matches[chosen_notation]
+    name = f"{chosen_notation.name}-{qualifier}" if qualifier else chosen_notation.name
 
-    return Representation(path=path, notation=chosen, source=source, name=name)
+    return Representation(path=path, notation=chosen_notation, source=source, name=name)
+
+
+def qualifier_of(file_name: str, suffix: str) -> str | None:
+    if file_name.lower() == suffix.lstrip("."):
+        return ""
+    if file_name.lower().endswith(suffix):
+        return file_name[: -len(suffix)]
+    return None
 
 
 def read(representation: Representation) -> tuple[UnitDescription, ...]:
