@@ -79,7 +79,7 @@ def describe(element: ET.Element, path: Path) -> tuple[UnitDescription, ...]:
             ),
         )
     if element.tag == TEI + "l":
-        return (describe_line(element, path),)
+        return (describe_line(element),)
     return describe_children(element, path)
 
 
