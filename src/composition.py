@@ -6,9 +6,10 @@ from models import (
     Notation,
     Representation,
     Schema,
+    SchemaDescription,
+    SchemaKind,
     Substrate,
     SynthesisError,
-    UnitDescription,
     Version,
 )
 from notations import NOTATIONS
@@ -16,17 +17,30 @@ from notations import NOTATIONS
 
 def compose(paths: list[Path]) -> Version:
     """Compose one version from its representations: the base supplies the substrate,
-    every representation becomes a schema, and integration joins them."""
+    each representation gives one or more schemata, and integration joins them."""
     representations = tuple(load(path) for path in paths)
-    descriptions = {r.path: read(r) for r in representations}
+    described = {r.path: read(r) for r in representations}
 
     base = choose_base(representations)
-    substrate = make_substrate(base, descriptions[base.path])
+    substrate = make_substrate(base, described[base.path])
 
-    schemata = {
-        r.name: make_schema(r, descriptions[r.path], substrate) for r in representations
-    }
-    return integrate(substrate, schemata, base.name)
+    schemata: dict[str, Schema] = {}
+    origins: dict[
+        str, Path
+    ] = {}  # which file gave each schema, to name both in a clash
+
+    for r in representations:
+        for schema_description in described[r.path]:
+            name = schema_name(schema_description.kind, r.qualifier)
+            if name in schemata:
+                raise SynthesisError(
+                    f"two schemata called {name}, from {origins[name]} and {r.path}; "
+                    "give one of the files a qualifier"
+                )
+            origins[name] = r.path
+            schemata[name] = make_schema(r, name, schema_description, substrate)
+
+    return integrate(substrate, schemata)
 
 
 def load(path: Path, notations: tuple[Notation, ...] = NOTATIONS) -> Representation:
@@ -46,13 +60,14 @@ def load(path: Path, notations: tuple[Notation, ...] = NOTATIONS) -> Representat
         )
 
     chosen_notation = max(matches, key=lambda notation: len(notation.suffix))
-
     source = path.read_text(encoding="utf-8-sig")
 
-    qualifier = matches[chosen_notation]
-    name = f"{chosen_notation.name}-{qualifier}" if qualifier else chosen_notation.name
-
-    return Representation(path=path, notation=chosen_notation, source=source, name=name)
+    return Representation(
+        path=path,
+        notation=chosen_notation,
+        source=source,
+        qualifier=matches[chosen_notation],
+    )
 
 
 def qualifier_of(file_name: str, suffix: str) -> str | None:
@@ -63,7 +78,11 @@ def qualifier_of(file_name: str, suffix: str) -> str | None:
     return None
 
 
-def read(representation: Representation) -> tuple[UnitDescription, ...]:
+def schema_name(kind: SchemaKind, qualifier: str) -> str:
+    return f"{kind.name}-{qualifier}" if qualifier else kind.name
+
+
+def read(representation: Representation) -> tuple[SchemaDescription, ...]:
     try:
         return representation.notation.read(representation)
     except SynthesisError as error:
@@ -84,20 +103,21 @@ def choose_base(representations: tuple[Representation, ...]) -> Representation:
 
 
 def make_substrate(
-    base: Representation, descriptions: tuple[UnitDescription, ...]
+    base: Representation, schemata: tuple[SchemaDescription, ...]
 ) -> Substrate:
     try:
-        return base.notation.transcribe(descriptions)
+        return base.notation.transcribe(schemata)
     except SynthesisError as error:
         raise SynthesisError(f"{base.path}: {error}") from error
 
 
 def make_schema(
     representation: Representation,
-    descriptions: tuple[UnitDescription, ...],
+    schema_name: str,
+    schema_description: SchemaDescription,
     substrate: Substrate,
 ) -> Schema:
     try:
-        return match(representation, descriptions, substrate)
+        return match(schema_name, schema_description, substrate)
     except SynthesisError as error:
         raise SynthesisError(f"{representation.path}: {error}") from error

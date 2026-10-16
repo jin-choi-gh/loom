@@ -74,24 +74,37 @@ class Rank:
 
 
 @dataclass(frozen=True)
+class SchemaKind:
+    name: str
+    ranks: tuple[Rank, ...]
+
+
+@dataclass(frozen=True)
+class SchemaDescription:
+    """One schema as a notation reads it from a representation: its kind, its units, and how to place them."""
+
+    kind: SchemaKind
+    descriptions: tuple[UnitDescription, ...]
+    matching_rule: MatchingRule
+
+
+@dataclass(frozen=True)
 class Representation:
     path: Path
     notation: Notation
     source: str
-    name: str
+    qualifier: str  # what the file name holds before the suffix: "smith" in smith.metre.txt, or ""
 
 
 class Notation:
     name: str
     suffix: str
-    ranks: dict[str, Rank]
-    matching_rule: MatchingRule
     can_be_base: bool
 
-    def read(self, representation: Representation) -> tuple[UnitDescription, ...]:
+    def read(self, representation: Representation) -> tuple[SchemaDescription, ...]:
         raise NotImplementedError
 
-    def transcribe(self, descriptions: tuple[UnitDescription, ...]) -> Substrate:
+    def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
         raise NotImplementedError
 
 
@@ -108,7 +121,7 @@ class Unit:
 @dataclass(frozen=True)
 class Schema:
     name: str
-    notation: Notation
+    kind: SchemaKind
     units: tuple[Unit, ...]
 
     def __post_init__(self) -> None:
@@ -126,6 +139,38 @@ class Schema:
                     f"schema {self.name} has two units called {unit.local_id}"
                 )
             seen.add(unit.local_id)
+
+        for unit in self.units:
+            self._check(unit)
+
+    def _check(self, unit: Unit) -> None:
+        rank = unit.rank
+        if rank not in self.kind.ranks:
+            raise SynthesisError(
+                f"{unit.local_id}: a {rank.name} has no place in a {self.kind.name} schema"
+            )
+
+        parent = self.parent(unit)
+        if parent is None and rank.parents:
+            raise SynthesisError(
+                f"{unit.local_id}: a {rank.name} must sit inside a "
+                + " or ".join(sorted(rank.parents))
+            )
+        if parent is not None and parent.rank.name not in rank.parents:
+            raise SynthesisError(
+                f"{unit.local_id}: a {rank.name} cannot sit inside a {parent.rank.name}"
+            )
+
+        if rank.values is None:
+            return
+        if not rank.values and unit.value is not None:
+            raise SynthesisError(
+                f"{unit.local_id}: a {rank.name} takes no value, but has {unit.value!r}"
+            )
+        if rank.values and unit.value not in rank.values:
+            raise SynthesisError(
+                f"{unit.local_id}: {unit.value!r} is not a value a {rank.name} can have"
+            )
 
     @cached_property
     def _by_id(self) -> dict[str, Unit]:
@@ -183,7 +228,6 @@ class Version:
     substrate: Substrate
     schemata: dict[str, Schema]
     atoms: tuple[Atom, ...]
-    base_schema: str
 
     @cached_property
     def _atoms_by_line(self) -> dict[int, tuple[Atom, ...]]:

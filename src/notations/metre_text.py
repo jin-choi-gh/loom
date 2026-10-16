@@ -3,23 +3,17 @@ import re
 from models import (
     MatchingRule,
     Notation,
-    Rank,
     Representation,
+    SchemaDescription,
     SynthesisError,
     UnitDescription,
 )
+from schemata.accentual_metre import ACCENTUAL_METRE, FOOT, SYLLABLE, VERSE
 
 LETTER = r"[^\W\d_]"
 STRAY_MARK = re.compile(rf"(?<={LETTER})[^\w\s.'’|\-–—](?={LETTER})")
 SYLLABLE_TEXT = re.compile(rf"{LETTER}+(?:['’]{LETTER}+)*")
 
-VERSE = Rank(name="verse")
-FOOT = Rank(name="foot", parents=frozenset({"verse"}))
-SYLLABLE = Rank(
-    name="syllable",
-    parents=frozenset({"foot"}),
-    values=frozenset({"stressed", "unstressed"}),
-)
 
 LETTERS = MatchingRule(
     compare=lambda a, b: a.casefold() == b.casefold(),
@@ -31,18 +25,16 @@ LETTERS = MatchingRule(
 class MetreText(Notation):
     name = "metre"
     suffix = ".metre.txt"
-    ranks = {rank.name: rank for rank in (VERSE, FOOT, SYLLABLE)}
-    matching_rule = LETTERS
     can_be_base = False
 
-    def read(self, representation: Representation) -> tuple[UnitDescription, ...]:
+    def read(self, representation: Representation) -> tuple[SchemaDescription, ...]:
         verses: list[UnitDescription] = []
         for row_number, row in enumerate(representation.source.splitlines(), start=1):
             row = row.strip()
             if not row or row.startswith("#"):
                 continue
             verses.append(describe_verse(row, len(verses) + 1, row_number))
-        return tuple(verses)
+        return (SchemaDescription(ACCENTUAL_METRE, tuple(verses), LETTERS),)
 
 
 def describe_verse(row: str, number: int, row_number: int) -> UnitDescription:

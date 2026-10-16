@@ -1,28 +1,23 @@
 import re
 import unicodedata
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 from models import (
     MatchingRule,
     Line,
     Notation,
-    Rank,
     Representation,
+    SchemaDescription,
     Substrate,
     SynthesisError,
     UnitDescription,
 )
+from schemata.display import DISPLAY, HIGHLIGHT, LINE, POEM, STANZA
 
 TEI = "{http://www.tei-c.org/ns/1.0}"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 INDENT = re.compile(r"indent\(([^)]*)\)")
 INITIAL = re.compile(r"initial\(([^)]*)\)")
-
-POEM = Rank(name="poem")
-STANZA = Rank(name="stanza", parents=frozenset({"poem"}))
-LINE = Rank(name="line", parents=frozenset({"stanza"}), values=None)
-HIGHLIGHT = Rank(name="highlight", parents=frozenset({"line"}), values=None)
 
 EXACT = MatchingRule(
     compare=lambda a, b: a == b,
@@ -34,11 +29,9 @@ EXACT = MatchingRule(
 class TeiDisplay(Notation):
     name = "tei-display"
     suffix = ".tei-display.xml"
-    ranks = {rank.name: rank for rank in (POEM, STANZA, LINE, HIGHLIGHT)}
-    matching_rule = EXACT
     can_be_base = True
 
-    def read(self, representation: Representation) -> tuple[UnitDescription, ...]:
+    def read(self, representation: Representation) -> tuple[SchemaDescription, ...]:
         try:
             root = ET.fromstring(representation.source)
         except ET.ParseError as error:
@@ -48,25 +41,29 @@ class TeiDisplay(Notation):
         if body is None:
             raise SynthesisError("no <text>/<body> element")
 
-        return describe_children(body, representation.path)
+        display = describe_children(body)
+        return (SchemaDescription(DISPLAY, display, EXACT),)
 
-    def transcribe(self, descriptions: tuple[UnitDescription, ...]) -> Substrate:
+    def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
+        display = next(s for s in schemata if s.kind == DISPLAY)
         lines = tuple(
-            Line(d.local_id, text_of(d)) for d in walk(descriptions) if d.rank is LINE
+            Line(d.local_id, text_of(d))
+            for d in walk(display.descriptions)
+            if d.rank is LINE
         )
         return Substrate(lines=lines)
 
 
-def describe_children(element: ET.Element, path: Path) -> tuple[UnitDescription, ...]:
-    return tuple(d for child in element for d in describe(child, path))
+def describe_children(element: ET.Element) -> tuple[UnitDescription, ...]:
+    return tuple(d for child in element for d in describe(child))
 
 
-def describe(element: ET.Element, path: Path) -> tuple[UnitDescription, ...]:
+def describe(element: ET.Element) -> tuple[UnitDescription, ...]:
     if element.tag == TEI + "div" and element.get("type") == "poem":
         return (
             UnitDescription(
                 rank=POEM,
-                content=describe_children(element, path),
+                content=describe_children(element),
                 local_id=element.get(XML_ID),
             ),
         )
@@ -74,13 +71,13 @@ def describe(element: ET.Element, path: Path) -> tuple[UnitDescription, ...]:
         return (
             UnitDescription(
                 rank=STANZA,
-                content=describe_children(element, path),
+                content=describe_children(element),
                 local_id=element.get(XML_ID),
             ),
         )
     if element.tag == TEI + "l":
         return (describe_line(element),)
-    return describe_children(element, path)
+    return describe_children(element)
 
 
 def describe_line(element: ET.Element) -> UnitDescription:

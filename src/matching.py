@@ -1,7 +1,8 @@
 from models import (
+    MatchingRule,
     Position,
-    Representation,
     Schema,
+    SchemaDescription,
     Span,
     Substrate,
     SynthesisError,
@@ -11,26 +12,26 @@ from models import (
 
 
 def match(
-    representation: Representation,
-    descriptions: tuple[UnitDescription, ...],
+    schema_name: str,
+    schema_description: SchemaDescription,
     substrate: Substrate,
 ) -> Schema:
-    matcher = Matcher(representation, substrate)
-    for d in descriptions:
+    matcher = Matcher(schema_name, schema_description.matching_rule, substrate)
+    for d in schema_description.descriptions:
         matcher.description(d, parent_id=None)
 
     matcher.skip()
     if not matcher.at_end():
         raise SynthesisError(f"text left over at {matcher.label()}")
 
-    return Schema(representation.name, representation.notation, tuple(matcher.units))
+    return Schema(schema_name, schema_description.kind, tuple(matcher.units))
 
 
 class Matcher:
-    def __init__(self, representation: Representation, substrate: Substrate) -> None:
-        self.name = representation.name
+    def __init__(self, name: str, rule: MatchingRule, substrate: Substrate) -> None:
+        self.name = name
         self.lines = substrate.lines
-        self.rule = representation.notation.matching_rule
+        self.rule = rule
         self.cursor = Position(0, 0)
         self.units: list[Unit | None] = []
 
