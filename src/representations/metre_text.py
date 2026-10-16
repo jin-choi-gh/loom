@@ -2,8 +2,8 @@ import re
 
 from models import (
     MatchingRule,
-    Notation,
     Representation,
+    RepresentationFormat,
     SchemaDescription,
     SynthesisError,
     UnitDescription,
@@ -22,7 +22,7 @@ LETTERS = MatchingRule(
 )
 
 
-class MetreText(Notation):
+class MetreText(RepresentationFormat):
     name = "metre"
     suffix = ".metre.txt"
     can_be_base = False

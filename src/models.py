@@ -81,7 +81,7 @@ class SchemaKind:
 
 @dataclass(frozen=True)
 class SchemaDescription:
-    """One schema as a notation reads it from a representation: its kind, its units, and how to place them."""
+    """One schema as a format reads it from a representation: its kind, its units, and how to place them."""
 
     kind: SchemaKind
     descriptions: tuple[UnitDescription, ...]
@@ -91,12 +91,12 @@ class SchemaDescription:
 @dataclass(frozen=True)
 class Representation:
     path: Path
-    notation: Notation
+    format: RepresentationFormat
     source: str
     qualifier: str  # what the file name holds before the suffix: "smith" in smith.metre.txt, or ""
 
 
-class Notation:
+class RepresentationFormat:
     name: str
     suffix: str
     can_be_base: bool

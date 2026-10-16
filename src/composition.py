@@ -3,8 +3,8 @@ from pathlib import Path
 from integration import integrate
 from matching import match
 from models import (
-    Notation,
     Representation,
+    RepresentationFormat,
     Schema,
     SchemaDescription,
     SchemaKind,
@@ -12,7 +12,7 @@ from models import (
     SynthesisError,
     Version,
 )
-from notations import NOTATIONS
+from representations import REPRESENTATION_FORMATS
 
 
 def compose(paths: list[Path]) -> Version:
@@ -43,30 +43,32 @@ def compose(paths: list[Path]) -> Version:
     return integrate(substrate, schemata)
 
 
-def load(path: Path, notations: tuple[Notation, ...] = NOTATIONS) -> Representation:
+def load(
+    path: Path, formats: tuple[RepresentationFormat, ...] = REPRESENTATION_FORMATS
+) -> Representation:
     if not path.is_file():
         raise SynthesisError(f"{path}: no such file")
 
     matches = {
-        n: qualifier
-        for n in notations
-        if (qualifier := qualifier_of(path.name, n.suffix)) is not None
+        f: qualifier
+        for f in formats
+        if (qualifier := qualifier_of(path.name, f.suffix)) is not None
     }
 
     if not matches:
-        known = ", ".join(n.suffix for n in notations) or "none yet"
+        known = ", ".join(f.suffix for f in formats) or "none yet"
         raise SynthesisError(
-            f"{path}: no notation for this file (known suffixes: {known})"
+            f"{path}: no format for this file (known suffixes: {known})"
         )
 
-    chosen_notation = max(matches, key=lambda notation: len(notation.suffix))
+    chosen_format = max(matches, key=lambda f: len(f.suffix))
     source = path.read_text(encoding="utf-8-sig")
 
     return Representation(
         path=path,
-        notation=chosen_notation,
+        format=chosen_format,
         source=source,
-        qualifier=matches[chosen_notation],
+        qualifier=matches[chosen_format],
     )
 
 
@@ -84,13 +86,13 @@ def schema_name(kind: SchemaKind, qualifier: str) -> str:
 
 def read(representation: Representation) -> tuple[SchemaDescription, ...]:
     try:
-        return representation.notation.read(representation)
+        return representation.format.read(representation)
     except SynthesisError as error:
         raise SynthesisError(f"{representation.path}: {error}") from error
 
 
 def choose_base(representations: tuple[Representation, ...]) -> Representation:
-    candidates = [r for r in representations if r.notation.can_be_base]
+    candidates = [r for r in representations if r.format.can_be_base]
 
     if len(candidates) == 1:
         return candidates[0]
@@ -106,7 +108,7 @@ def make_substrate(
     base: Representation, schemata: tuple[SchemaDescription, ...]
 ) -> Substrate:
     try:
-        return base.notation.transcribe(schemata)
+        return base.format.transcribe(schemata)
     except SynthesisError as error:
         raise SynthesisError(f"{base.path}: {error}") from error
 

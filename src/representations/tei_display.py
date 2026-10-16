@@ -3,10 +3,10 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 from models import (
-    MatchingRule,
     Line,
-    Notation,
+    MatchingRule,
     Representation,
+    RepresentationFormat,
     SchemaDescription,
     Substrate,
     SynthesisError,
@@ -33,7 +33,7 @@ WORDS = MatchingRule(
 )
 
 
-class TeiDisplay(Notation):
+class TeiDisplay(RepresentationFormat):
     name = "tei-display"
     suffix = ".tei-display.xml"
     can_be_base = True
