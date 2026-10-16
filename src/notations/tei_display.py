@@ -13,6 +13,7 @@ from models import (
     UnitDescription,
 )
 from schemata.display import DISPLAY, HIGHLIGHT, LINE, POEM, STANZA
+from schemata.word_tokens import WORD_TOKENS, describe_words, is_word_char
 
 TEI = "{http://www.tei-c.org/ns/1.0}"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
@@ -22,6 +23,12 @@ INITIAL = re.compile(r"initial\(([^)]*)\)")
 EXACT = MatchingRule(
     compare=lambda a, b: a == b,
     may_skip=lambda c: False,
+    line_break_matches=None,
+)
+
+WORDS = MatchingRule(
+    compare=lambda a, b: a == b,
+    may_skip=lambda c: not is_word_char(c),
     line_break_matches=None,
 )
 
@@ -42,7 +49,16 @@ class TeiDisplay(Notation):
             raise SynthesisError("no <text>/<body> element")
 
         display = describe_children(body)
-        return (SchemaDescription(DISPLAY, display, EXACT),)
+        words = tuple(
+            word
+            for d in walk(display)
+            if d.rank is LINE
+            for word in describe_words(text_of(d), d.local_id)
+        )
+        return (
+            SchemaDescription(DISPLAY, display, EXACT),
+            SchemaDescription(WORD_TOKENS, words, WORDS),
+        )
 
     def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
         display = next(s for s in schemata if s.kind == DISPLAY)
