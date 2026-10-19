@@ -56,6 +56,26 @@ class Substrate:
                 raise SynthesisError(f"two lines are called {line.id}")
             seen.add(line.id)
 
+    @cached_property
+    def _index_by_id(self) -> dict[str, int]:
+        return {line.id: index for index, line in enumerate(self.lines)}
+
+    def line_index(self, line_id: str) -> int:
+        try:
+            return self._index_by_id[line_id]
+        except KeyError:
+            raise SynthesisError(f"no line called {line_id}") from None
+
+    def text_of(self, span: Span) -> str:
+        """The text a span covers. Across lines, each line's part, joined by line breaks."""
+        start, end = span.start, span.end
+        if start.line == end.line:
+            return self.lines[start.line].text[start.offset : end.offset]
+        first = self.lines[start.line].text[start.offset :]
+        middle = [line.text for line in self.lines[start.line + 1 : end.line]]
+        last = self.lines[end.line].text[: end.offset]
+        return "\n".join([first, *middle, last])
+
 
 @dataclass(frozen=True)
 class UnitDescription:
@@ -225,6 +245,7 @@ class Atom:
 
 @dataclass(frozen=True)
 class Version:
+    name: str | None
     substrate: Substrate
     schemata: dict[str, Schema]
     atoms: tuple[Atom, ...]
@@ -249,3 +270,18 @@ class Version:
             chain.append(unit)
             unit = schema.parent(unit)
         return tuple(chain)
+
+
+@dataclass(frozen=True)
+class SpanTarget:
+    """A stretch of the version's substrate: the note is about the text itself."""
+
+    span: Span
+
+
+@dataclass(frozen=True)
+class Annotation:
+    """A note on a version's text: what it says, and what it is about."""
+
+    targets: tuple[SpanTarget, ...]  # one or more, joined by && in the file
+    body: str  # the note's text, its indentation removed

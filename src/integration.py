@@ -3,13 +3,20 @@ from dataclasses import dataclass, field
 from models import Atom, Position, Schema, Span, Substrate, Unit, Version
 
 
-def integrate(substrate: Substrate, schemata: dict[str, Schema]) -> Version:
+def integrate(
+    substrate: Substrate, schemata: dict[str, Schema], version_name: str | None
+) -> Version:
     """Join schemata over one substrate into a version."""
     cuts = find_cuts(substrate, schemata)
     drafts = AtomDrafts(cut_atoms(substrate, cuts))
     find_membership(drafts, schemata)
     atoms = tuple(draft.finish(substrate) for draft in drafts.all)
-    return Version(substrate, schemata, atoms)
+    return Version(
+        name=version_name,
+        substrate=substrate,
+        schemata=schemata,
+        atoms=atoms,
+    )
 
 
 @dataclass

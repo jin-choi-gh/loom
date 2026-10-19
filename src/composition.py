@@ -15,7 +15,7 @@ from models import (
 from representations import REPRESENTATION_FORMATS
 
 
-def compose(paths: list[Path]) -> Version:
+def compose(paths: list[Path], version_name: str | None = None) -> Version:
     """Compose one version from its representations: the base supplies the substrate,
     each representation gives one or more schemata, and integration joins them."""
     representations = tuple(load(path) for path in paths)
@@ -40,7 +40,7 @@ def compose(paths: list[Path]) -> Version:
             origins[name] = r.path
             schemata[name] = make_schema(r, name, schema_description, substrate)
 
-    return integrate(substrate, schemata)
+    return integrate(substrate, schemata, version_name)
 
 
 def load(
