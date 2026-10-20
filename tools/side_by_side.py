@@ -18,8 +18,10 @@ work.toml:
 
 and for each work it will:
 
-  1. compose each version with loom (loom/src): its lines, indents and drop caps from the display
-     schema, its words from the word-tokens schema
+  1. compose each version with loom (loom/src), from every representation file in its folder: its
+     lines, stanzas, indents and drop caps from the display schema, its words from the word-tokens
+     schema, and its scansion from an accentual-metre schema (a metre.txt) if it has one. A Metre
+     key on the bar, off until pressed, shows the scansion over the syllables.
   2. pair the words of every two versions, line by line
   3. write loom/outputs/<work>.html: two panes, each showing any version or the facsimile,
      switched from a menu above it. Hovering a word lights up its counterpart in the other pane.
@@ -68,8 +70,12 @@ sys.path.insert(0, str(LOOM / "src"))
 
 import mobile_page  # tools/mobile_page.py
 
-from composition import compose  # loom/src, importable through the path set above
+from composition import (
+    compose,
+    qualifier_of,
+)  # loom/src, importable through the path set above
 from models import Position, Schema, Span, SynthesisError, Version
+from representations import REPRESENTATION_FORMATS
 from representations.tei_display import INITIAL
 
 NOTE_STYLES = {  # how notes are marked in the text: page name suffix → style
@@ -123,6 +129,7 @@ NUMBERED_TYPES = {
     "critical"
 }  # versions whose lines are numbered, every fifth, in the margin
 NUMBER_EVERY = 5
+METRE = "accentual-metre"  # the schema kind whose syllables the Metre key marks
 FONTS = (
     TOOLS / "fonts"
 )  # Libertinus Serif (SIL Open Font License, fonts/OFL.txt), embedded in the page
@@ -159,6 +166,19 @@ class Initial:
 
 
 @dataclass(frozen=True)
+class Syllable:
+    start: int  # offset in the line, end exclusive
+    end: int
+    stressed: bool
+    foot: int  # which foot of its verse, from 1
+    feet: int  # how many feet the verse has
+    number: int  # which syllable of its verse, from 1
+    count: int  # how many syllables the verse has
+    foot_text: str  # its foot as a metre file writes it: "the MAR"
+    opens_foot: str  # "" inside a foot; where a later foot begins: "space" after a space, else "in"
+
+
+@dataclass(frozen=True)
 class NoteView:
     id: str  # n1, n2, …, in the order of the notes files and of the notes in them
     row: int  # its head's row in its file
@@ -181,12 +201,19 @@ class LineView:
     notes: tuple[tuple[int, int, str, str, int, bool], ...]
     # (passage, lane, first line?, last line?, note ids): the margin brackets beside this line
     margin: tuple[tuple[str, int, bool, bool, str], ...]
+    stanza: str | None  # the stanza it belongs to, from the display schema
+    syllables: tuple[
+        Syllable, ...
+    ]  # from the version's metrical reading, if it has one
 
 
 @dataclass(frozen=True)
 class VersionPart:
     name: str  # the version's folder: quarto-1609
     display: Path  # its display file
+    files: tuple[
+        Path, ...
+    ]  # every representation file in its folder, composed together
     label: str  # from version.toml, for menus: "1609 Quarto"; the folder's name if none
     type: str  # from version.toml: diplomatic, critical, …; "" if none
 
@@ -201,6 +228,7 @@ class VersionView:
     notes: tuple[NoteView, ...]  # the notes on this version, from every notes file
     passages: dict[str, str]  # passage key → its text, shortened, for the status bar
     lanes: int  # how many brackets the margin needs side by side
+    metre: bool  # it has a metrical reading, which the Metre key shows
 
 
 # ── Finding the work's parts ────────────────────────────────────────────────────────────────────
@@ -221,6 +249,13 @@ def find_works(folder: Path) -> list[Path]:
 def is_display(path: Path) -> bool:
     return path.is_file() and (
         path.name == DISPLAY_FILE or path.name.endswith("." + DISPLAY_FILE)
+    )
+
+
+def is_representation(path: Path) -> bool:
+    """A file some loom format reads, judged by its name (as works.py judges it)."""
+    return path.is_file() and any(
+        qualifier_of(path.name, f.suffix) is not None for f in REPRESENTATION_FORMATS
     )
 
 
@@ -285,6 +320,7 @@ def find_parts(folder: Path) -> tuple[Path | None, list[VersionPart]]:
             VersionPart(
                 sub.name,
                 display,
+                tuple(sorted(p for p in sub.iterdir() if is_representation(p))),
                 text_field(fields, "label", path) or sub.name,
                 text_field(fields, "type", path) or "",
             )
@@ -370,11 +406,16 @@ def version_view(
     display = version.schemata["display"]
     words: dict[int, list[Word]] = {}  # line index → its words, in order
     for unit in version.schemata["word-tokens"].units:
+        if unit.rank.name != "word":
+            continue  # the schema's lines, which hold the words
         start, end = unit.span.start, unit.span.end
         text = version.substrate.lines[start.line].text[start.offset : end.offset]
         words.setdefault(start.line, []).append(
             Word(unit.local_id, text, start.offset, end.offset, comparison_key(text))
         )
+
+    metre = metre_schema(version)
+    syllables = syllables_of(metre, version) if metre else {}
 
     lines: list[LineView] = []
     for index, line in enumerate(version.substrate.lines):
@@ -391,6 +432,8 @@ def version_view(
                 initials_of(display, line.id),
                 tuple(noted.get(index, [])),
                 tuple(margin[index]),
+                stanza_of(display, line.id),
+                tuple(syllables.get(index, [])),
             )
         )
     return VersionView(
@@ -402,7 +445,69 @@ def version_view(
         tuple(note for note, _ in notes),
         passages,
         lanes,
+        metre is not None,
     )
+
+
+def stanza_of(display: Schema, line_id: str) -> str | None:
+    """The stanza a line sits in, if the display schema puts it in one."""
+    parent = display.parent(display.unit(line_id))
+    return (
+        parent.local_id if parent is not None and parent.rank.name == "stanza" else None
+    )
+
+
+def metre_schema(version: Version) -> Schema | None:
+    """The version's metrical reading, if it has one: the unqualified one before any qualified."""
+    readings = sorted(
+        (s for s in version.schemata.values() if s.kind.name == METRE),
+        key=lambda s: (s.name != METRE, s.name),
+    )
+    return readings[0] if readings else None
+
+
+def syllables_of(metre: Schema, version: Version) -> dict[int, list[Syllable]]:
+    """Every syllable of the reading, by the line it starts in, with its place in foot and verse."""
+    by_line: dict[int, list[Syllable]] = {}
+    lines = version.substrate.lines
+    for verse in metre.roots():
+        feet = [
+            [(s, version.substrate.text_of(s.span)) for s in metre.children(foot)]
+            for foot in metre.children(verse)
+        ]
+        count = sum(len(foot) for foot in feet)
+        number = 0
+        for f, foot in enumerate(feet, start=1):
+            # The foot as the metre file writes it: stressed syllables in capitals.
+            written = " ".join(
+                text.upper() if unit.value == "stressed" else text.lower()
+                for unit, text in foot
+            )
+            for i, (unit, _) in enumerate(foot):
+                number += 1
+                start, end = unit.span.start, unit.span.end
+                text = lines[start.line].text
+                opens = ""
+                if f > 1 and i == 0:
+                    opens = (
+                        "space"
+                        if start.offset and text[start.offset - 1] == " "
+                        else "in"
+                    )
+                by_line.setdefault(start.line, []).append(
+                    Syllable(
+                        start.offset,
+                        end.offset if end.line == start.line else len(text),
+                        unit.value == "stressed",
+                        f,
+                        len(feet),
+                        number,
+                        count,
+                        written,
+                        opens,
+                    )
+                )
+    return by_line
 
 
 def bracket_lanes(
@@ -596,36 +701,84 @@ def pair_versions(a: VersionView, b: VersionView) -> list[dict]:
 
 def render_version(view: VersionView) -> str:
     """A version as HTML: its head, then its lines, each word a span carrying its id and
-    everything else plain text. Numbered versions carry every fifth line's number after it."""
+    everything else plain text. Numbered versions carry every fifth line's number after it; a
+    version with a metrical reading carries each syllable's scansion, and each line's syllable count,
+    for the Metre key to show. A gap separates stanzas, crossed by the brackets that run on."""
     numbered = view.type in NUMBERED_TYPES
     rows = []
     for number, line in enumerate(view.lines, start=1):
+        previous = view.lines[number - 2] if number > 1 else None
+        if previous and line.stanza != previous.stanza:
+            running = {key for key, *_ in previous.margin}
+            rules = "".join(
+                rule(key, lane, False, False, ids)
+                for key, lane, top, _, ids in line.margin
+                if key in running and not top
+            )
+            rows.append(
+                f'<div class="gap"><span class="gs"></span><span class="mg">{rules}</span></div>'
+            )
         parts, cursor = [], 0
         for word in line.words:
-            parts.append(marked(line, cursor, word.start))
+            parts.append(scanned(line, cursor, word.start))
             parts.append(
-                f'<span class="w" data-w="{word.id}" tabindex="0">{marked(line, word.start, word.end)}</span>'
+                f'<span class="w" data-w="{word.id}" tabindex="0">{scanned(line, word.start, word.end)}</span>'
             )
             cursor = word.end
-        parts.append(marked(line, cursor, len(line.text)))
+        parts.append(scanned(line, cursor, len(line.text)))
         indent = f' style="--indent:{line.indent:g}"' if line.indent else ""
         shown = number if numbered and number % NUMBER_EVERY == 0 else ""
-        rules = "".join(
-            f'<span class="rule{" top" if top else ""}{" end" if end else ""}" '
-            f'data-pass="{key}" data-n="{ids}" style="--lane:{lane}"></span>'
-            for key, lane, top, end, ids in line.margin
+        rules = "".join(rule(*bracket) for bracket in line.margin)
+        count = (
+            f'<span class="sc">{line.syllables[0].count}</span>'
+            if line.syllables
+            else ""
         )
         rows.append(
             f'<div class="line"><span class="lt"{indent}>{"".join(parts)}</span>'
-            f'<span class="mg">{rules}</span><span class="ln">{shown}</span></div>'
+            f'<span class="mg">{rules}</span><span class="ln">{shown}</span>{count}</div>'
         )
     head = f'<h2 class="head">{html.escape(view.head)}</h2>' if view.head else ""
+    metre = " has-metre" if view.metre else ""
     return (
-        f'<div class="text" style="--lanes:{view.lanes}">'
+        f'<div class="text{metre}" style="--lanes:{view.lanes}">'
         + head
         + "\n".join(rows)
         + "</div>"
     )
+
+
+def rule(key: str, lane: int, top: bool, end: bool, ids: str) -> str:
+    """One line's part of a margin bracket: with its top tick on its first line, its foot on its last."""
+    return (
+        f'<span class="rule{" top" if top else ""}{" end" if end else ""}" '
+        f'data-pass="{key}" data-n="{ids}" style="--lane:{lane}"></span>'
+    )
+
+
+def scanned(line: LineView, start: int, end: int) -> str:
+    """The line's text from start to end, as marked() gives it, each syllable set apart for the
+    scansion marks. A syllable the range cuts carries its marks on the piece where it begins."""
+    parts, cursor = [], start
+    for syllable in line.syllables:
+        first, last = max(syllable.start, start), min(syllable.end, end)
+        if first >= last:
+            continue
+        parts.append(marked(line, cursor, first))
+        data = ""
+        if first == syllable.start:
+            stress = "stressed" if syllable.stressed else "unstressed"
+            about = (
+                f"{line.id} · foot {syllable.foot} of {syllable.feet}: {syllable.foot_text}"
+                f" · syllable {syllable.number} of {syllable.count}, {stress}"
+            )
+            data = f' data-s="{int(syllable.stressed)}" data-m="{html.escape(about)}"'
+            if syllable.opens_foot:
+                data += f' data-ft="{syllable.opens_foot}"'
+        parts.append(f'<span class="sy"{data}>{marked(line, first, last)}</span>')
+        cursor = last
+    parts.append(marked(line, cursor, end))
+    return "".join(parts)
 
 
 def marked(line: LineView, start: int, end: int) -> str:
@@ -728,6 +881,7 @@ def page_data(work: Work, facsimile: Path | None, views: list[VersionView]) -> d
             if view.notes
         },
         "passages": {view.name: view.passages for view in views if view.passages},
+        "metre": [view.name for view in views if view.metre],
     }
 
 
@@ -787,7 +941,7 @@ PAGE = """<!doctype html>
 }
 ::selection { background-color: #a4c5ff; }
 * { box-sizing: border-box; }
-.w, select, .drawer-tab, .drawer .close, .drawer tbody tr {
+.w, select, .drawer-tab, .toggle, .drawer .close, .drawer tbody tr {
   transition: background-color .2s ease-out, box-shadow .2s ease-out, color .2s ease-out, opacity .2s ease-out;
 }
 html { background: var(--paper); color: var(--ink); font: 19px/1.32 var(--serif); }
@@ -812,7 +966,10 @@ select:hover, select:focus { outline: none; box-shadow: 0 0 2px 1px var(--glow) 
 .content { flex: 1; overflow-x: auto; padding: 0 0 .4em 1.2em; }
 .live { display: flex; flex-direction: column; min-width: 0; }
 /* The lines in one column, as wide as the longest; the line numbers in a narrow column to its right. */
-.text { display: grid; grid-template-columns: max-content auto 1.5em; align-items: baseline; line-height: 1.8; }
+.text { display: grid; grid-template-columns: max-content auto 1.5em auto; align-items: baseline; line-height: 1.8; }
+/* Between stanzas, a gap; brackets that run on cross it. */
+.gap { display: contents; }
+.gap .gs { grid-column: 1; height: .9em; }
 .line { display: contents; }
 .head { grid-column: 1; margin: 0 0 .4em; font-size: 1.2em; font-weight: normal; text-align: center; }  /* centred over the lines */
 .lt { grid-column: 1; position: relative; white-space: pre; padding-left: calc(var(--indent, 0) * 2em); }
@@ -914,6 +1071,34 @@ body.drawer-open main { padding-bottom: calc(var(--drawer) + 3em); }
 .nt .lemma { margin: 0 0 .3em; }
 .nt .lemma i { font-style: italic; }
 .nt p { margin: 0 0 .5em; line-height: 1.45; }
+/* Scansion, while the Metre key is on, in a version with a metrical reading: over each syllable a
+   stress (ˊ) or a slack (˘), in the editor's blue, and a hairline where a foot begins; after each line,
+   how many syllables its verse has. The marks sit in the room the taller lines give above the letters,
+   so the text itself is untouched. */
+.sy { position: relative; }
+.sc { grid-column: 4; display: none; padding-left: 1.1em; color: #9a9a9a; font-size: .68em; font-style: italic;
+  font-variant-numeric: tabular-nums; }
+.show-metre .has-metre { line-height: 2.25; }
+.show-metre .has-metre .sc { display: block; }
+.show-metre .has-metre .rule.top { top: .78em; }
+.show-metre .has-metre .rule.end { bottom: .78em; }
+.show-metre .sy[data-s]::before { position: absolute; left: 50%; top: -.28em; transform: translateX(-50%);
+  font-size: 1.15em; line-height: 1; text-indent: 0; color: var(--editor); pointer-events: none; }
+.show-metre .sy[data-s="1"]::before { content: "\\02CA"; }
+.show-metre .sy[data-s="0"]::before { content: "\\02D8"; color: #8a9bc8; }
+.show-metre .sy[data-ft]::after { content: ""; position: absolute; top: -.18em; height: .32em;
+  border-left: 1px solid #9fb0dc; pointer-events: none; }
+.show-metre .sy[data-ft="in"]::after { left: -.5px; }
+.show-metre .sy[data-ft="space"]::after { left: -.16em; }  /* in the middle of the space before */
+.toggle { flex: none; margin-left: .6em; padding: .1em .8em; font: inherit; color: var(--ink); cursor: pointer;
+  border: 0; background: var(--key); box-shadow: 0 0 0 1px #ffffff inset, 0 0 3px 0 var(--key-edge); }
+.toggle[hidden] { display: none; }
+.toggle + .drawer-tab { margin-left: .6em; }
+.toggle:hover, .toggle:focus-visible { outline: none; background: var(--sheet);
+  box-shadow: 0 0 0 1px #ffffff inset, 0 0 6px 1.5px var(--glow); }
+.toggle[aria-pressed="true"] { background: var(--dark); color: var(--dark-ink); box-shadow: 0 0 0 1px var(--dark); }
+.toggle[aria-pressed="true"]:hover, .toggle[aria-pressed="true"]:focus-visible { background: var(--dark);
+  box-shadow: 0 0 6px 1.5px var(--glow); }
 @media (prefers-reduced-motion: reduce) { .w, select, .drawer, .drawer-tab, .drawer .close, .drawer tbody tr { transition: none; } }
 .note { color: var(--fade); font-size: .8em; margin-top: 1.4em; max-width: 80ch; }
 /* The bar along the bottom: what is hovered. */
@@ -964,6 +1149,7 @@ body.drawer-open main { padding-bottom: calc(var(--drawer) + 3em); }
 </aside>
 <div class="bar">
   <div class="status" id="status" aria-live="polite"></div>
+  <button type="button" class="toggle" id="metre-key" aria-pressed="false" hidden>Metre</button>
   <button type="button" class="drawer-tab" id="notes-tab" aria-expanded="false" aria-controls="differences" hidden>
     Notes<span class="count" id="notes-count"></span>
   </button>
@@ -996,8 +1182,27 @@ const notesList = document.getElementById("notes-list");
 const diffTable = document.getElementById("diff-table");
 const drawerTitle = document.getElementById("drawer-title");
 let litNotes = [];
+const metreKey = document.getElementById("metre-key");
+let metreOn = false;  // scansion: off until the key is pressed
+const METRE_HINT = "Metre: ˊ stressed, ˘ unstressed, a hairline where a foot begins; after each line, its syllables. Hover a syllable for its foot.";
 
 function isText(name) { return DATA.texts.includes(name); }
+
+// The Metre key is there while either side shows a version with a metrical reading; pressed, it
+// shows the scansion of each such version. The taller lines it needs move drop caps, so they are
+// measured again.
+function updateMetre() {
+  const available = [picks.left.value, picks.right.value].some(name => DATA.metre.includes(name));
+  metreKey.hidden = !available;
+  metreKey.setAttribute("aria-pressed", String(metreOn && available));
+  panesBox.classList.toggle("show-metre", metreOn && available);
+}
+
+function showScansion(target) {
+  if (!panesBox.classList.contains("show-metre") || panesBox.classList.contains("show-notes")) return;
+  const syllable = target.closest(".sy[data-m]");
+  if (syllable) status.textContent = syllable.dataset.m;
+}
 function lineOf(wordId) { return wordId.slice(0, wordId.lastIndexOf(".")); }
 function textOf(side, ids) {
   return ids.map(id => panes[side].querySelector(`.live [data-w="${id}"]`)?.textContent ?? "").join(" ");
@@ -1054,6 +1259,7 @@ function sourceOf(name) {
 }
 
 function render() {
+  updateMetre();
   for (const side of ["left", "right"]) {
     panes[side].querySelector(".live").replaceChildren(sourceOf(picks[side].value));
     setInitials(panes[side].querySelector(".live"));
@@ -1336,7 +1542,11 @@ function light(side, wordId) {
 }
 
 for (const side of ["left", "right"]) {
-  panes[side].addEventListener("mouseover", e => { const w = e.target.closest(".w"); if (w) light(side, w.dataset.w); });
+  panes[side].addEventListener("mouseover", e => {
+    const w = e.target.closest(".w");
+    if (w) light(side, w.dataset.w);
+    showScansion(e.target);
+  });
   panes[side].addEventListener("focusin", e => { const w = e.target.closest(".w"); if (w) light(side, w.dataset.w); });
   panes[side].addEventListener("mouseleave", () => light(side, null));
   panes[side].addEventListener("click", e => {
@@ -1347,6 +1557,12 @@ for (const side of ["left", "right"]) {
   });
   picks[side].addEventListener("change", render);
 }
+metreKey.addEventListener("click", () => {
+  metreOn = !metreOn;
+  updateMetre();
+  setInitials(document);
+  if (!panesBox.classList.contains("show-notes")) status.textContent = metreOn ? METRE_HINT : "";
+});
 notesTab.addEventListener("click", () => toggleDrawer("notes"));
 diffTab.addEventListener("click", () => toggleDrawer("differences"));
 diffClose.addEventListener("click", () => setDrawer(false));
@@ -1394,7 +1610,7 @@ def main(argv: list[str] | None = None) -> None:
 def build_work(folder: Path, out_folder: Path) -> None:
     """Compose one work's versions, and write its page, named after its folder."""
     facsimile, parts = find_parts(folder)
-    versions = {part.name: compose([part.display], part.name) for part in parts}
+    versions = {part.name: compose(list(part.files), part.name) for part in parts}
     notes = read_notes(folder, versions)
     views = []
     for part in parts:
@@ -1403,8 +1619,9 @@ def build_work(folder: Path, out_folder: Path) -> None:
         )
         words = sum(len(line.words) for line in view.lines)
         noted = f", {len(view.notes)} notes" if view.notes else ""
+        scanned = ", a metrical reading" if view.metre else ""
         print(
-            f"{part.name} ({part.label}): {len(view.lines)} lines, {words} words{noted}"
+            f"{part.name} ({part.label}): {len(view.lines)} lines, {words} words{noted}{scanned}"
         )
         views.append(view)
 

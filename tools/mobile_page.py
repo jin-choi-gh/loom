@@ -105,7 +105,9 @@ ion-title .by { font-size: 12px; font-weight: 400; color: var(--fade); }
 
 /* Lines: one column, turning over with a hanging indent when too long for the screen; the margin's
    brackets; then the line numbers. */
-.text { display: grid; grid-template-columns: minmax(0, 1fr) auto 1.6em; align-items: baseline; }
+.text { display: grid; grid-template-columns: minmax(0, 1fr) auto 1.6em auto; align-items: baseline; }
+.gap { display: contents; }  /* between stanzas */
+.gap .gs { grid-column: 1; height: .8em; }
 .line { display: contents; }
 .head { grid-column: 1; margin: 0 0 .5em; font-size: 1.15em; font-weight: normal; text-align: center; }
 .lt { grid-column: 1; position: relative; white-space: pre-wrap; text-indent: -1.1em;
@@ -137,6 +139,26 @@ ion-title .by { font-size: 12px; font-weight: 400; color: var(--fade); }
 .show-notes .an.u { text-decoration: underline var(--note-faint) 1px; text-underline-offset: .24em; }
 .show-notes .an.u[data-k="2"] { text-decoration-color: var(--note); text-decoration-thickness: 2px; }
 .show-notes .an.sel { background: var(--note-paper); text-decoration-color: var(--note-deep); }
+
+/* Scansion, as on the desktop: ˊ or ˘ over each syllable, a hairline where a foot begins, each line's
+   syllables after it. Only in the edition read, never in the text compared under it. */
+.sy { position: relative; }
+.sc { grid-column: 4; display: none; padding-left: .6em; color: #9a9a9a; font-size: .68em; font-style: italic;
+  font-variant-numeric: tabular-nums; }
+.show-metre .has-metre { line-height: 2.2; }
+.show-metre .has-metre .sc { display: block; }
+.show-metre .has-metre .rule.top { top: .78em; }
+.show-metre .has-metre .rule.end { bottom: .78em; }
+.show-metre .sy[data-s]::before { position: absolute; left: 50%; top: -.36em; transform: translateX(-50%);
+  font-size: 1.15em; line-height: 1; text-indent: 0; color: var(--editor); pointer-events: none; }
+.show-metre .sy[data-s="1"]::before { content: "\\02CA"; }
+.show-metre .sy[data-s="0"]::before { content: "\\02D8"; color: #8a9bc8; }
+.show-metre .sy[data-ft]::after { content: ""; position: absolute; top: -.26em; height: .32em;
+  border-left: 1px solid #9fb0dc; pointer-events: none; }
+.show-metre .sy[data-ft="in"]::after { left: -.5px; }
+.show-metre .sy[data-ft="space"]::after { left: -.16em; }
+.show-metre .under .sy::before, .show-metre .under .sy::after { content: none; }
+.show-metre .under .sc { display: none; }
 
 /* The notes sheet. Ionic turns sheets into centred cards on screens wider than 768px, judged by the
    browser window, not the phone frame: pin it to the phone's full width. */
@@ -174,6 +196,7 @@ ion-title .by { font-size: 12px; font-weight: 400; color: var(--fade); }
       <ion-toolbar>
         <ion-buttons slot="start">
           <ion-button id="compare-button" fill="clear">Compare</ion-button>
+          <ion-button id="metre-button" fill="clear">Metre</ion-button>
         </ion-buttons>
         <ion-buttons slot="end">
           <ion-button id="notes-button" fill="clear">Notes&nbsp;<ion-badge id="notes-badge" color="primary"></ion-badge></ion-button>
@@ -197,7 +220,8 @@ ion-title .by { font-size: 12px; font-weight: 400; color: var(--fade); }
 </div></div>
 <p class="desk-note"><b>Mock-up.</b> Ionic 8 in iOS mode, at iPhone size. Choose an edition at the top.
 <b>Compare</b> puts the other text under each line; tap a word for its counterpart. <b>Notes</b> marks the
-passages notes discuss: tap a bracket or an underlined word, tap again to go narrower. The notes scroll
+passages notes discuss: tap a bracket or an underlined word, tap again to go narrower. <b>Metre</b> shows
+the scansion, where an edition has one: tap a syllable for its foot. The notes scroll
 in the sheet; drag its handle to make it taller or shorter.</p>
 <script>
 const DATA = %DATA%;
@@ -213,15 +237,17 @@ const allNotes = document.getElementById("all-notes");
 const notesButton = document.getElementById("notes-button");
 const notesBadge = document.getElementById("notes-badge");
 const compareButton = document.getElementById("compare-button");
+const metreButton = document.getElementById("metre-button");
 
 let shown = segment.getAttribute("value");  // the edition on screen (read before Ionic upgrades it)
-let notesOn = false, compareOn = false;
+let notesOn = false, compareOn = false, metreOn = false;  // all off until pressed
 let pairs = null;  // when comparing: word id → its group, for this text and for the one under it
 let drill = null, selected = [], lit = [];
 
 const isText = name => DATA.texts.includes(name);
 const otherText = () => DATA.texts.find(t => t !== shown);
 const hasNotes = () => Boolean(DATA.notes[shown]);
+const hasMetre = () => DATA.metre.includes(shown);
 
 function sourceOf(name) {
   const template = document.createElement("template");
@@ -241,6 +267,7 @@ function render() {
   reading.replaceChildren(sourceOf(shown));
   reading.classList.toggle("show-notes", notesOn && hasNotes());
   reading.classList.toggle("compare", compareOn);
+  reading.classList.toggle("show-metre", metreOn && hasMetre());
   pairs = null;
   tally.textContent = "";
   if (compareOn && isText(shown) && otherText()) interleave();
@@ -258,6 +285,8 @@ function updateButtons() {
   const comparable = isText(shown) && Boolean(otherText());
   compareButton.style.display = comparable ? "" : "none";
   compareButton.setAttribute("fill", compareOn ? "solid" : "clear");
+  metreButton.style.display = hasMetre() ? "" : "none";
+  metreButton.setAttribute("fill", metreOn && hasMetre() ? "solid" : "clear");
   if (!notes.length && notesOn) { notesOn = false; sheet.dismiss(); }
 }
 
@@ -461,6 +490,12 @@ function setInitials(root) {
 // ── Wiring ──────────────────────────────────────────────────────────────────────────────────────
 segment.addEventListener("ionChange", e => { shown = e.detail.value; render(); });
 compareButton.addEventListener("click", () => { compareOn = !compareOn; render(); });
+metreButton.addEventListener("click", () => {
+  metreOn = !metreOn;
+  reading.classList.toggle("show-metre", metreOn && hasMetre());
+  updateButtons();
+  afterLayout(() => setInitials(reading));  // the taller lines move any drop cap
+});
 notesButton.addEventListener("click", () => {
   notesOn = !notesOn;
   reading.classList.toggle("show-notes", notesOn);
@@ -484,7 +519,11 @@ reading.addEventListener("click", e => {
   }
   if (compareOn && pairs) {
     const word = e.target.closest(".w");
-    if (word) lightPair(word);
+    if (word) return lightPair(word);
+  }
+  if (metreOn && hasMetre()) {
+    const syllable = e.target.closest(".line:not(.under) .sy[data-m]");
+    if (syllable) toast(syllable.dataset.m);
   }
 });
 

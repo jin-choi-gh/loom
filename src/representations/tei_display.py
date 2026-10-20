@@ -12,7 +12,9 @@ from models import (
     SynthesisError,
     UnitDescription,
 )
-from schemata.display import DISPLAY, HIGHLIGHT, LINE, POEM, STANZA
+from schemata.display import DISPLAY, HIGHLIGHT, POEM, STANZA
+from schemata.display import LINE as DISPLAY_LINE
+from schemata.word_tokens import LINE as TOKENS_LINE
 from schemata.word_tokens import WORD_TOKENS, describe_words, is_word_char
 
 TEI = "{http://www.tei-c.org/ns/1.0}"
@@ -49,15 +51,17 @@ class TeiDisplay(RepresentationFormat):
             raise SynthesisError("no <text>/<body> element")
 
         display = describe_children(body)
-        words = tuple(
-            word
+
+        tokens = tuple(
+            UnitDescription(rank=TOKENS_LINE, content=words, local_id=d.local_id)
             for d in walk(display)
-            if d.rank is LINE
-            for word in describe_words(text_of(d), d.local_id)
+            if d.rank is DISPLAY_LINE
+            if (words := describe_words(text_of(d), d.local_id))
         )
+
         return (
             SchemaDescription(DISPLAY, display, EXACT),
-            SchemaDescription(WORD_TOKENS, words, WORDS),
+            SchemaDescription(WORD_TOKENS, tokens, WORDS),
         )
 
     def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
@@ -65,7 +69,7 @@ class TeiDisplay(RepresentationFormat):
         lines = tuple(
             Line(d.local_id, text_of(d))
             for d in walk(display.descriptions)
-            if d.rank is LINE
+            if d.rank is DISPLAY_LINE
         )
         return Substrate(lines=lines)
 
@@ -105,7 +109,7 @@ def describe_line(element: ET.Element) -> UnitDescription:
     indent = match.group(1) if match else "0"
 
     line = UnitDescription(
-        rank=LINE,
+        rank=DISPLAY_LINE,
         content=describe_inline(element, line_id),
         value=indent,
         local_id=line_id,

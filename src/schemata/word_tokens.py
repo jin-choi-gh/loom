@@ -2,8 +2,9 @@ import re
 
 from models import Rank, SchemaKind, UnitDescription
 
-WORD = Rank(name="word")
-WORD_TOKENS = SchemaKind(name="word-tokens", ranks=(WORD,))
+LINE = Rank(name="line")
+WORD = Rank(name="word", parents=frozenset({"line"}))
+WORD_TOKENS = SchemaKind(name="word-tokens", ranks=(LINE, WORD))
 
 # What a word is:
 #   - a run of letters, digits and combining marks (ſtar, yͤ), with apostrophes inside (o'er);
