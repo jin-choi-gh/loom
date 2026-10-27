@@ -6,6 +6,32 @@ from .core import Span
 
 
 @dataclass(frozen=True)
+class End:
+    line_id: str
+    quote: str | None = None
+    occurrence: int = 1
+
+
+@dataclass(frozen=True)
+class TargetDescription:
+    first: End
+    last: End | None = None
+
+
+@dataclass(frozen=True)
+class AnnotationDescription:
+    row: int
+    targets: tuple[TargetDescription, ...]
+    body: str
+
+
+@dataclass(frozen=True)
+class AnnotationSetDescription:
+    version: str | None
+    annotations: tuple[AnnotationDescription, ...]
+
+
+@dataclass(frozen=True)
 class SpanTarget:
     """A stretch of the version's substrate: the note is about the text itself."""
 

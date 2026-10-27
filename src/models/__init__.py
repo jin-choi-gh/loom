@@ -1,4 +1,11 @@
-from .annotation import Annotation, SpanTarget
+from .annotation import (
+    Annotation,
+    AnnotationDescription,
+    AnnotationSetDescription,
+    End,
+    SpanTarget,
+    TargetDescription,
+)
 from .core import Line, Position, Span, Substrate, SynthesisError
 from .representation import Representation, RepresentationFormat
 from .schema import (
@@ -15,7 +22,10 @@ from .version import Atom, Version
 
 __all__ = [
     "Annotation",
+    "AnnotationDescription",
+    "AnnotationSetDescription",
     "Atom",
+    "End",
     "Line",
     "MatchingRule",
     "Position",
@@ -29,6 +39,7 @@ __all__ = [
     "SpanTarget",
     "Substrate",
     "SynthesisError",
+    "TargetDescription",
     "Unit",
     "UnitDescription",
     "VariantTable",
