@@ -1,8 +1,7 @@
 from .annotation import (
     Annotation,
     AnnotationDescription,
-    AnnotationSetDescription,
-    End,
+    Locator,
     SpanTarget,
     TargetDescription,
 )
@@ -23,10 +22,9 @@ from .version import Atom, Version
 __all__ = [
     "Annotation",
     "AnnotationDescription",
-    "AnnotationSetDescription",
     "Atom",
-    "End",
     "Line",
+    "Locator",
     "MatchingRule",
     "Position",
     "Rank",
