@@ -1,11 +1,15 @@
 import argparse
 import sys
+import tomllib
+from dataclasses import fields, replace
 from pathlib import Path
 
 from annotations import ANNOTATION_FORMATS
 from composition import compose, find_format
-from models import Atom, SynthesisError, Unit, Version
+from models import Atom, SynthesisError, Unit, Version, VersionMetadata
 from representations import REPRESENTATION_FORMATS
+
+VERSION_FILE = "version.toml"
 
 
 def show_version(version: Version) -> None:
@@ -50,6 +54,27 @@ def show_annotations(version: Version) -> None:
             print()
 
 
+def read_metadata(folder: Path) -> VersionMetadata:
+    """A version's metadata, from the version.toml in its folder; empty if there is none."""
+    path = folder / VERSION_FILE
+    if not path.is_file():
+        return VersionMetadata()
+    try:
+        values = tomllib.loads(path.read_text(encoding="utf-8-sig"))
+    except tomllib.TOMLDecodeError as error:
+        raise SynthesisError(f"{path}: {error}") from error
+
+    known = {f.name for f in fields(VersionMetadata)}
+    for key, value in values.items():
+        if key not in known:
+            raise SynthesisError(
+                f"{path}: unknown key {key!r} (known: {', '.join(sorted(known))})"
+            )
+        if not isinstance(value, str):
+            raise SynthesisError(f"{path}: {key} must be text")
+    return VersionMetadata(**values)
+
+
 def compose_folder(folder: Path) -> Version:
     """A version from its folder: every file in it that some format reads, named after the folder."""
     if not folder.is_dir():
@@ -63,7 +88,7 @@ def compose_folder(folder: Path) -> Version:
             or find_format(p, ANNOTATION_FORMATS) is not None
         )
     )
-    return compose(paths, folder.name)
+    return replace(compose(paths, folder.name), metadata=read_metadata(folder))
 
 
 def main(argv=None):

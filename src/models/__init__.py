@@ -18,7 +18,7 @@ from .schema import (
     UnitDescription,
     VariantTable,
 )
-from .version import Atom, Version
+from .version import Atom, Version, VersionMetadata
 
 __all__ = [
     "Annotation",
@@ -44,4 +44,5 @@ __all__ = [
     "UnitDescription",
     "VariantTable",
     "Version",
+    "VersionMetadata",
 ]
