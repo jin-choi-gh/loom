@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
+from .annotation import Annotation
 from .core import Line, Span, Substrate
 from .schema import Schema, Unit
 
@@ -23,6 +24,7 @@ class Version:
     substrate: Substrate
     schemata: dict[str, Schema]
     atoms: tuple[Atom, ...]
+    annotations: dict[str, tuple[Annotation, ...]] = field(default_factory=dict)
 
     @cached_property
     def _atoms_by_line(self) -> dict[int, tuple[Atom, ...]]:

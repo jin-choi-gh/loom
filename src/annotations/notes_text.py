@@ -3,12 +3,21 @@ import textwrap
 
 from models import (
     AnnotationDescription,
+    AnnotationFormat,
     Locator,
     SynthesisError,
     TargetDescription,
 )
 
 OCCURRENCE = re.compile(r"(?P<quote>.+)\[(?P<n>\d+)\]")  # "ever[2]": a quote, then [n]
+
+
+class NotesText(AnnotationFormat):
+    name = "notes"
+    suffix = ".notes.txt"
+
+    def read(self, source: str) -> tuple[AnnotationDescription, ...]:
+        return parse(source)
 
 
 def parse(text: str) -> tuple[AnnotationDescription, ...]:

@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from .core import Span
 
 
+class AnnotationFormat:
+    name: str
+    suffix: str
+
+    def read(self, source: str) -> tuple[AnnotationDescription, ...]:
+        raise NotImplementedError
+
+
 @dataclass(frozen=True)
 class Locator:
     line_id: str
