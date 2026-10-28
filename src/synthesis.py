@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 import tomllib
 from dataclasses import fields, replace
@@ -6,6 +7,7 @@ from pathlib import Path
 
 from annotations import ANNOTATION_FORMATS
 from composition import compose, find_format
+from exports.version_json import version_to_json
 from models import Atom, SynthesisError, Unit, Version, VersionMetadata
 from representations import REPRESENTATION_FORMATS
 
@@ -100,6 +102,10 @@ def main(argv=None):
         type=Path,
         help="a version's folder, or the files of one version",
     )
+    ap.add_argument(
+        "--json", type=Path, metavar="FILE", help="write the version to FILE as JSON"
+    )
+
     args = ap.parse_args(argv)
 
     try:
@@ -107,11 +113,20 @@ def main(argv=None):
             version = compose_folder(args.paths[0])
         else:
             version = compose(args.paths)
-        show_version(version)
-        show_annotations(version)
+        if args.json:
+            data = version_to_json(version)
+            args.json.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            print(f"wrote {args.json}")
+        else:
+            show_version(version)
+            show_annotations(version)
 
     except SynthesisError as e:
         sys.exit(f"error: {e}")
+    except OSError as e:
+        sys.exit(f"error: cannot write {args.json}: {e.strerror}")
 
 
 if __name__ == "__main__":

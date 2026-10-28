@@ -1,0 +1,3 @@
+# loom's ruff settings. The rules are ruff's defaults.
+target-version = "py312"  # tomllib (3.11), and generic functions such as find_format[F] (3.12)
+line-length = 88  # ruff's default, as the code is formatted now
