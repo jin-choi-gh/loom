@@ -3,8 +3,6 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 from models import (
-    Line,
-    MatchingRule,
     Representation,
     RepresentationFormat,
     SchemaDescription,
@@ -12,27 +10,14 @@ from models import (
     SynthesisError,
     UnitDescription,
 )
-from schemata.display import DISPLAY, HIGHLIGHT, POEM, STANZA
+from schemata.display import DISPLAY, EXACT, HIGHLIGHT, POEM, STANZA, lines_of, text_of
 from schemata.display import LINE as DISPLAY_LINE
-from schemata.word_tokens import LINE as TOKENS_LINE
-from schemata.word_tokens import WORD_TOKENS, describe_words, is_word_char
+from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
 
 TEI = "{http://www.tei-c.org/ns/1.0}"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 INDENT = re.compile(r"indent\(([^)]*)\)")
 INITIAL = re.compile(r"initial\(([^)]*)\)")
-
-EXACT = MatchingRule(
-    compare=lambda a, b: a == b,
-    may_skip=lambda c: False,
-    line_break_matches=None,
-)
-
-WORDS = MatchingRule(
-    compare=lambda a, b: a == b,
-    may_skip=lambda c: not is_word_char(c),
-    line_break_matches=None,
-)
 
 
 class TeiDisplay(RepresentationFormat):
@@ -52,12 +37,7 @@ class TeiDisplay(RepresentationFormat):
 
         display = describe_children(body)
 
-        tokens = tuple(
-            UnitDescription(rank=TOKENS_LINE, content=words, local_id=d.local_id)
-            for d in walk(display)
-            if d.rank is DISPLAY_LINE
-            if (words := describe_words(text_of(d), d.local_id))
-        )
+        tokens = describe_tokens(lines_of(display))
 
         return (
             SchemaDescription(DISPLAY, display, EXACT),
@@ -66,12 +46,7 @@ class TeiDisplay(RepresentationFormat):
 
     def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
         display = next(s for s in schemata if s.kind == DISPLAY)
-        lines = tuple(
-            Line(d.local_id, text_of(d))
-            for d in walk(display.descriptions)
-            if d.rank is DISPLAY_LINE
-        )
-        return Substrate(lines=lines)
+        return Substrate(lines=lines_of(display.descriptions))
 
 
 def describe_children(element: ET.Element) -> tuple[UnitDescription, ...]:
@@ -156,13 +131,3 @@ def describe_highlight(element: ET.Element, local_id: str) -> UnitDescription:
         value=rend,
         local_id=local_id,
     )
-
-
-def text_of(d: UnitDescription) -> str:
-    return "".join(c if isinstance(c, str) else text_of(c) for c in d.content)
-
-
-def walk(descriptions: tuple[UnitDescription, ...]):
-    for d in descriptions:
-        yield d
-        yield from walk(tuple(c for c in d.content if isinstance(c, UnitDescription)))

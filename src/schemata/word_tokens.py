@@ -1,10 +1,16 @@
 import re
 
-from models import Rank, SchemaKind, UnitDescription
+from models import Line, MatchingRule, Rank, SchemaKind, UnitDescription
 
 LINE = Rank(name="line")
 WORD = Rank(name="word", parents=frozenset({"line"}))
 WORD_TOKENS = SchemaKind(name="word-tokens", ranks=(LINE, WORD))
+
+WORDS = MatchingRule(
+    compare=lambda a, b: a == b,
+    may_skip=lambda c: not is_word_char(c),
+    line_break_matches=None,
+)
 
 # What a word is:
 #   - a run of letters, digits and combining marks (ſtar, yͤ), with apostrophes inside (o'er);
@@ -39,4 +45,13 @@ def describe_words(text: str, line_id: str) -> tuple[UnitDescription, ...]:
     return tuple(
         UnitDescription(rank=WORD, content=(word,), local_id=f"{line_id}.w{number}")
         for number, word in enumerate(WORD_TEXT.findall(text), start=1)
+    )
+
+
+def describe_tokens(lines: tuple[Line, ...]) -> tuple[UnitDescription, ...]:
+    """Each line that has words, holding its words; a line with none is left out."""
+    return tuple(
+        UnitDescription(rank=LINE, content=words, local_id=line.id)
+        for line in lines
+        if (words := describe_words(line.text, line.id))
     )
