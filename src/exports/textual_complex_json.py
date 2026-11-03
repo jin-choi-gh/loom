@@ -1,4 +1,4 @@
-"""A version as JSON, so that it can be read by front-end apps.
+"""A textual complex as JSON, so that it can be read by front-end apps.
 
 Positions are [line, offset]: the line's index in "lines", and a character offset within it.
 Units are referred to by their local id, which is unique within their schema.
@@ -6,26 +6,29 @@ Units are referred to by their local id, which is unique within their schema.
 
 from dataclasses import asdict
 
-from models import Annotation, Atom, Position, Schema, Span, Version
+from models import Annotation, Atom, Position, Schema, Span, TextualComplex
 
-FORMAT = "loom-version"
+FORMAT = "loom-textual-complex"
 FORMAT_VERSION = 1
 
 
-def version_to_json(version: Version) -> dict:
+def textual_complex_to_json(textual_complex: TextualComplex) -> dict:
     return {
         "format": FORMAT,
         "format_version": FORMAT_VERSION,
-        "name": version.name,
-        "metadata": asdict(version.metadata),
+        "name": textual_complex.name,
+        "metadata": asdict(textual_complex.metadata),
         "lines": [
-            {"id": line.id, "text": line.text} for line in version.substrate.lines
+            {"id": line.id, "text": line.text}
+            for line in textual_complex.substrate.lines
         ],
-        "schemata": {name: schema_to_json(s) for name, s in version.schemata.items()},
-        "atoms": [atom_to_json(atom) for atom in version.atoms],
+        "schemata": {
+            name: schema_to_json(s) for name, s in textual_complex.schemata.items()
+        },
+        "atoms": [atom_to_json(atom) for atom in textual_complex.atoms],
         "annotations": {
             name: [annotation_to_json(a) for a in annotations]
-            for name, annotations in version.annotations.items()
+            for name, annotations in textual_complex.annotations.items()
         },
     }
 

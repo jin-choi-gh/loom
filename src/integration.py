@@ -1,18 +1,18 @@
 from dataclasses import dataclass, field
 
-from models import Atom, Position, Schema, Span, Substrate, Unit, Version
+from models import Atom, Position, Schema, Span, Substrate, TextualComplex, Unit
 
 
 def integrate(
-    substrate: Substrate, schemata: dict[str, Schema], version_name: str | None
-) -> Version:
-    """Join schemata over one substrate into a version."""
+    substrate: Substrate, schemata: dict[str, Schema], textual_complex_name: str | None
+) -> TextualComplex:
+    """Join schemata over one substrate into a textual complex."""
     cuts = find_cuts(substrate, schemata)
     drafts = AtomDrafts(cut_atoms(substrate, cuts))
     find_membership(drafts, schemata)
     atoms = tuple(draft.finish(substrate) for draft in drafts.all)
-    return Version(
-        name=version_name,
+    return TextualComplex(
+        name=textual_complex_name,
         substrate=substrate,
         schemata=schemata,
         atoms=atoms,

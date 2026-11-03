@@ -19,21 +19,21 @@ class Atom:
 
 
 @dataclass(frozen=True)
-class VersionMetadata:
-    """What a version is, as its version.toml says."""
+class Metadata:
+    """What a textual complex is, as its meta.toml says."""
 
     title: str | None = None
     author: str | None = None
 
 
 @dataclass(frozen=True)
-class Version:
+class TextualComplex:
     name: str | None
     substrate: Substrate
     schemata: dict[str, Schema]
     atoms: tuple[Atom, ...]
     annotations: dict[str, tuple[Annotation, ...]] = field(default_factory=dict)
-    metadata: VersionMetadata = VersionMetadata()
+    metadata: Metadata = Metadata()
 
     @cached_property
     def _atoms_by_line(self) -> dict[int, tuple[Atom, ...]]:

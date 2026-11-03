@@ -16,13 +16,15 @@ from models import (
     SchemaKind,
     Substrate,
     SynthesisError,
-    Version,
+    TextualComplex,
 )
 from representations import REPRESENTATION_FORMATS
 
 
-def compose(paths: list[Path], version_name: str | None = None) -> Version:
-    """Compose one version from its representations: the base supplies the substrate,
+def compose(
+    paths: list[Path], textual_complex_name: str | None = None
+) -> TextualComplex:
+    """Compose one textual complex from its representations: the base supplies the substrate,
     each representation gives one or more schemata, and integration joins them. Then
     annotations are anchored to the substrate."""
 
@@ -50,7 +52,7 @@ def compose(paths: list[Path], version_name: str | None = None) -> Version:
             origins[name] = r.path
             schemata[name] = make_schema(r, name, schema_description, substrate)
 
-    version = integrate(substrate, schemata, version_name)
+    textual_complex = integrate(substrate, schemata, textual_complex_name)
 
     annotations: dict[str, tuple[Annotation, ...]] = {}
     notes_origins: dict[
@@ -64,9 +66,9 @@ def compose(paths: list[Path], version_name: str | None = None) -> Version:
                 "give one of the files a qualifier"
             )
         notes_origins[name] = path
-        annotations[name] = make_annotations(path, descriptions, version)
+        annotations[name] = make_annotations(path, descriptions, textual_complex)
 
-    return replace(version, annotations=annotations)
+    return replace(textual_complex, annotations=annotations)
 
 
 def load(
@@ -177,10 +179,12 @@ def make_schema(
 
 
 def make_annotations(
-    path: Path, descriptions: tuple[AnnotationDescription, ...], version: Version
+    path: Path,
+    descriptions: tuple[AnnotationDescription, ...],
+    textual_complex: TextualComplex,
 ) -> tuple[Annotation, ...]:
     try:
-        return anchor(descriptions, version)
+        return anchor(descriptions, textual_complex)
     except SynthesisError as error:
         lines = str(error).splitlines()  # one line per broken note
         raise SynthesisError("\n".join(f"{path}: {line}" for line in lines)) from error

@@ -18,7 +18,7 @@ from .schema import (
     UnitDescription,
     VariantTable,
 )
-from .version import Atom, Version, VersionMetadata
+from .textual_complex import Atom, Metadata, TextualComplex
 
 __all__ = [
     "Annotation",
@@ -28,6 +28,7 @@ __all__ = [
     "Line",
     "Locator",
     "MatchingRule",
+    "Metadata",
     "Position",
     "Rank",
     "Representation",
@@ -40,9 +41,8 @@ __all__ = [
     "Substrate",
     "SynthesisError",
     "TargetDescription",
+    "TextualComplex",
     "Unit",
     "UnitDescription",
     "VariantTable",
-    "Version",
-    "VersionMetadata",
 ]

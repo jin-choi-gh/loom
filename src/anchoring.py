@@ -10,20 +10,20 @@ from models import (
     Substrate,
     SynthesisError,
     TargetDescription,
-    Version,
+    TextualComplex,
 )
 
 
 def anchor(
-    descriptions: tuple[AnnotationDescription, ...], version: Version
+    descriptions: tuple[AnnotationDescription, ...], textual_complex: TextualComplex
 ) -> tuple[Annotation, ...]:
-    """Each annotation's targets found in the version's substrate."""
+    """Each annotation's targets found in the textual complex's substrate."""
     annotations: list[Annotation] = []
     errors: list[str] = []
     for description in descriptions:
         try:
             targets = tuple(
-                SpanTarget(anchor_target(target, version.substrate))
+                SpanTarget(anchor_target(target, textual_complex.substrate))
                 for target in description.targets
             )
         except SynthesisError as error:

@@ -7,18 +7,18 @@ from pathlib import Path
 
 from annotations import ANNOTATION_FORMATS
 from composition import compose, find_format
-from exports.version_json import version_to_json
-from models import Atom, SynthesisError, Unit, Version, VersionMetadata
+from exports.textual_complex_json import textual_complex_to_json
+from models import Atom, Metadata, SynthesisError, TextualComplex, Unit
 from representations import REPRESENTATION_FORMATS
 
-VERSION_FILE = "version.toml"
+META_FILE = "meta.toml"
 
 
-def show_version(version: Version) -> None:
+def show_textual_complex(textual_complex: TextualComplex) -> None:
     """Every line's atoms, each with its innermost unit in every schema and, for every set of
     notes, the numbers of the notes covering it."""
-    names = list(version.schemata)
-    sets = list(version.annotations)
+    names = list(textual_complex.schemata)
+    sets = list(textual_complex.annotations)
 
     def label(unit: Unit | None) -> str:
         return "–" if unit is None else f"{unit.rank.name} {unit.local_id}"
@@ -27,13 +27,15 @@ def show_version(version: Version) -> None:
         """Notes never cut the text, so a note covers an atom when their spans overlap."""
         numbers = [
             str(number)
-            for number, annotation in enumerate(version.annotations[name], start=1)
+            for number, annotation in enumerate(
+                textual_complex.annotations[name], start=1
+            )
             if any(target.span.overlaps(atom.span) for target in annotation.targets)
         ]
         return " ".join(numbers) or "–"
 
     print(f"{'atom':12}" + "".join(f"{name:22}" for name in names + sets))
-    for line, atoms in version.lines():
+    for line, atoms in textual_complex.lines():
         print(f"── {line.id}: {line.text}")
         for atom in atoms:
             cells = [label(atom.innermost.get(name)) for name in names]
@@ -41,13 +43,13 @@ def show_version(version: Version) -> None:
             print(f"{atom.text!r:12}" + "".join(f"{cell:22}" for cell in cells))
 
 
-def show_annotations(version: Version) -> None:
+def show_annotations(textual_complex: TextualComplex) -> None:
     """Each set of notes: every note's number, the text each of its targets covers, and its body."""
-    for name, annotations in version.annotations.items():
+    for name, annotations in textual_complex.annotations.items():
         print(f"\n── {name}\n")
         for number, annotation in enumerate(annotations, start=1):
             covered = " · ".join(
-                repr(version.substrate.text_of(target.span))
+                repr(textual_complex.substrate.text_of(target.span))
                 for target in annotation.targets
             )
             print(f"{number:<4} covers {covered}")
@@ -56,17 +58,17 @@ def show_annotations(version: Version) -> None:
             print()
 
 
-def read_metadata(folder: Path) -> VersionMetadata:
-    """A version's metadata, from the version.toml in its folder; empty if there is none."""
-    path = folder / VERSION_FILE
+def read_metadata(folder: Path) -> Metadata:
+    """A textual complex's metadata, from the meta.toml in its folder; empty if there is none."""
+    path = folder / META_FILE
     if not path.is_file():
-        return VersionMetadata()
+        return Metadata()
     try:
         values = tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except tomllib.TOMLDecodeError as error:
         raise SynthesisError(f"{path}: {error}") from error
 
-    known = {f.name for f in fields(VersionMetadata)}
+    known = {f.name for f in fields(Metadata)}
     for key, value in values.items():
         if key not in known:
             raise SynthesisError(
@@ -74,11 +76,11 @@ def read_metadata(folder: Path) -> VersionMetadata:
             )
         if not isinstance(value, str):
             raise SynthesisError(f"{path}: {key} must be text")
-    return VersionMetadata(**values)
+    return Metadata(**values)
 
 
-def compose_folder(folder: Path) -> Version:
-    """A version from its folder: every file in it that some format reads, named after the folder."""
+def compose_folder(folder: Path) -> TextualComplex:
+    """A textual complex from its folder: every file in it that some format reads, named after the folder."""
     if not folder.is_dir():
         raise SynthesisError(f"{folder}: no such folder")
     paths = sorted(
@@ -100,28 +102,31 @@ def main(argv=None):
         "paths",
         nargs="+",
         type=Path,
-        help="a version's folder, or the files of one version",
+        help="a textual complex's folder, or the files of one textual complex",
     )
     ap.add_argument(
-        "--json", type=Path, metavar="FILE", help="write the version to FILE as JSON"
+        "--json",
+        type=Path,
+        metavar="FILE",
+        help="write the textual complex to FILE as JSON",
     )
 
     args = ap.parse_args(argv)
 
     try:
         if len(args.paths) == 1 and args.paths[0].is_dir():
-            version = compose_folder(args.paths[0])
+            textual_complex = compose_folder(args.paths[0])
         else:
-            version = compose(args.paths)
+            textual_complex = compose(args.paths)
         if args.json:
-            data = version_to_json(version)
+            data = textual_complex_to_json(textual_complex)
             args.json.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             print(f"wrote {args.json}")
         else:
-            show_version(version)
-            show_annotations(version)
+            show_textual_complex(textual_complex)
+            show_annotations(textual_complex)
 
     except SynthesisError as e:
         sys.exit(f"error: {e}")
