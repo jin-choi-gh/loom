@@ -69,14 +69,11 @@ def read_metadata(folder: Path) -> Metadata:
         raise SynthesisError(f"{path}: {error}") from error
 
     known = {f.name for f in fields(Metadata)}
-    for key, value in values.items():
-        if key not in known:
-            raise SynthesisError(
-                f"{path}: unknown key {key!r} (known: {', '.join(sorted(known))})"
-            )
+    picked = {key: value for key, value in values.items() if key in known}
+    for key, value in picked.items():
         if not isinstance(value, str):
             raise SynthesisError(f"{path}: {key} must be text")
-    return Metadata(**values)
+    return Metadata(**picked)
 
 
 def compose_folder(folder: Path) -> TextualComplex:
