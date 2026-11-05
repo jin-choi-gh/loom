@@ -7,6 +7,7 @@ from .annotation import (
     TargetDescription,
 )
 from .core import Line, Position, Span, Substrate, SynthesisError
+from .metadata import Metadata, NotesMetadata
 from .representation import Representation, RepresentationFormat
 from .schema import (
     MatchingRule,
@@ -18,7 +19,7 @@ from .schema import (
     UnitDescription,
     VariantTable,
 )
-from .textual_complex import Atom, Metadata, TextualComplex
+from .textual_complex import Atom, TextualComplex
 
 __all__ = [
     "Annotation",
@@ -29,6 +30,7 @@ __all__ = [
     "Locator",
     "MatchingRule",
     "Metadata",
+    "NotesMetadata",
     "Position",
     "Rank",
     "Representation",

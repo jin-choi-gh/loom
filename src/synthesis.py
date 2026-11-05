@@ -1,13 +1,13 @@
 import argparse
 import json
 import sys
-import tomllib
-from dataclasses import fields, replace
+from dataclasses import replace
 from pathlib import Path
 
 from annotations import ANNOTATION_FORMATS
 from composition import compose, find_format
 from exports.textual_complex_json import textual_complex_to_json
+from metadata import parse_metadata
 from models import Atom, Metadata, SynthesisError, TextualComplex, Unit
 from representations import REPRESENTATION_FORMATS
 
@@ -64,16 +64,9 @@ def read_metadata(folder: Path) -> Metadata:
     if not path.is_file():
         return Metadata()
     try:
-        values = tomllib.loads(path.read_text(encoding="utf-8-sig"))
-    except tomllib.TOMLDecodeError as error:
+        return parse_metadata(path.read_text(encoding="utf-8-sig"))
+    except SynthesisError as error:
         raise SynthesisError(f"{path}: {error}") from error
-
-    known = {f.name for f in fields(Metadata)}
-    picked = {key: value for key, value in values.items() if key in known}
-    for key, value in picked.items():
-        if not isinstance(value, str):
-            raise SynthesisError(f"{path}: {key} must be text")
-    return Metadata(**picked)
 
 
 def compose_folder(folder: Path) -> TextualComplex:

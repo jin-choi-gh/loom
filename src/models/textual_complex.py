@@ -6,6 +6,7 @@ from functools import cached_property
 
 from .annotation import Annotation
 from .core import Line, Span, Substrate
+from .metadata import Metadata
 from .schema import Schema, Unit
 
 
@@ -19,21 +20,13 @@ class Atom:
 
 
 @dataclass(frozen=True)
-class Metadata:
-    """What a textual complex is, as its meta.toml says."""
-
-    title: str | None = None
-    author: str | None = None
-
-
-@dataclass(frozen=True)
 class TextualComplex:
     name: str | None
     substrate: Substrate
     schemata: dict[str, Schema]
     atoms: tuple[Atom, ...]
     annotations: dict[str, tuple[Annotation, ...]] = field(default_factory=dict)
-    metadata: Metadata = Metadata()
+    metadata: Metadata = field(default_factory=Metadata)
 
     @cached_property
     def _atoms_by_line(self) -> dict[int, tuple[Atom, ...]]:
