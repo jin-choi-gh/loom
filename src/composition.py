@@ -5,10 +5,12 @@ from anchoring import anchor
 from annotations import ANNOTATION_FORMATS
 from integration import integrate
 from matching import match
+from metadata import parse_metadata
 from models import (
     Annotation,
     AnnotationDescription,
     AnnotationFormat,
+    Metadata,
     Representation,
     RepresentationFormat,
     Schema,
@@ -22,7 +24,9 @@ from representations import REPRESENTATION_FORMATS
 
 
 def compose(
-    paths: list[Path], textual_complex_name: str | None = None
+    paths: list[Path],
+    textual_complex_name: str | None = None,
+    metadata: Metadata | None = None,
 ) -> TextualComplex:
     """Compose one textual complex from its representations: the base supplies the substrate,
     each representation gives one or more schemata, and integration joins them. Then
@@ -52,7 +56,10 @@ def compose(
             origins[name] = r.path
             schemata[name] = make_schema(r, name, schema_description, substrate)
 
-    textual_complex = integrate(substrate, schemata, textual_complex_name)
+    textual_complex = replace(
+        integrate(substrate, schemata, textual_complex_name),
+        metadata=metadata or Metadata(),
+    )
 
     annotations: dict[str, tuple[Annotation, ...]] = {}
     notes_origins: dict[
@@ -140,6 +147,16 @@ def read_notes(path: Path) -> tuple[str, tuple[AnnotationDescription, ...]]:
     name = f"{notes_format.name}-{qualifier}" if qualifier else notes_format.name
     try:
         return name, notes_format.read(path.read_text(encoding="utf-8-sig"))
+    except SynthesisError as error:
+        raise SynthesisError(f"{path}: {error}") from error
+
+
+def read_metadata(path: Path) -> Metadata:
+    """A textual complex's metadata, from its meta.toml; empty if there is none."""
+    if not path.is_file():
+        return Metadata()
+    try:
+        return parse_metadata(path.read_text(encoding="utf-8-sig"))
     except SynthesisError as error:
         raise SynthesisError(f"{path}: {error}") from error
 

@@ -1,14 +1,12 @@
 import argparse
 import json
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 from annotations import ANNOTATION_FORMATS
-from composition import compose, find_format
+from composition import compose, find_format, read_metadata
 from exports.textual_complex_json import textual_complex_to_json
-from metadata import parse_metadata
-from models import Atom, Metadata, SynthesisError, TextualComplex, Unit
+from models import Atom, SynthesisError, TextualComplex, Unit
 from representations import REPRESENTATION_FORMATS
 
 META_FILE = "meta.toml"
@@ -58,17 +56,6 @@ def show_annotations(textual_complex: TextualComplex) -> None:
             print()
 
 
-def read_metadata(folder: Path) -> Metadata:
-    """A textual complex's metadata, from the meta.toml in its folder; empty if there is none."""
-    path = folder / META_FILE
-    if not path.is_file():
-        return Metadata()
-    try:
-        return parse_metadata(path.read_text(encoding="utf-8-sig"))
-    except SynthesisError as error:
-        raise SynthesisError(f"{path}: {error}") from error
-
-
 def compose_folder(folder: Path) -> TextualComplex:
     """A textual complex from its folder: every file in it that some format reads, named after the folder."""
     if not folder.is_dir():
@@ -82,7 +69,7 @@ def compose_folder(folder: Path) -> TextualComplex:
             or find_format(p, ANNOTATION_FORMATS) is not None
         )
     )
-    return replace(compose(paths, folder.name), metadata=read_metadata(folder))
+    return compose(paths, folder.name, read_metadata(folder / META_FILE))
 
 
 def main(argv=None):
