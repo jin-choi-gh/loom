@@ -3,7 +3,7 @@ import tomllib
 
 from models import Metadata, NotesMetadata, SynthesisError
 
-TAG = re.compile(r"[^\s{}]+")  # a tag is one word in a note's {...}
+TAG = re.compile(r"[^\s{},]+")  # a tag is one word in a note's { }
 
 
 def parse_metadata(source: str) -> Metadata:
@@ -53,7 +53,7 @@ def parse_tags(tags: object) -> tuple[str, ...]:
     for tag in tags:
         if not isinstance(tag, str) or not TAG.fullmatch(tag):
             raise SynthesisError(
-                f"[notes]: {tag!r} is not a tag: one word, with no braces"
+                f"[notes]: {tag!r} is not a tag: one word, with no braces or commas"
             )
         if tag in seen:
             raise SynthesisError(f"[notes]: {tag!r} is declared twice")

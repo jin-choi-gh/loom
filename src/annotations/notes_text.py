@@ -50,7 +50,7 @@ def parse(text: str) -> tuple[AnnotationDescription, ...]:
             if not found:
                 raise SynthesisError(
                     f"row {row}: a line at the left edge must be a head ending in ' ]' "
-                    "or ' ] {tags}'; indent it if it belongs to the note above"
+                    "or ' ] { tags }'; indent it if it belongs to the note above"
                 )
             finish_note()
             targets = parse_targets(found["targets"], row)
@@ -60,13 +60,15 @@ def parse(text: str) -> tuple[AnnotationDescription, ...]:
 
 
 def parse_tags(text: str | None, row: int) -> tuple[str, ...]:
-    """'gloss form': the tags in a head's {...}; none if it has no {...}."""
+    """' comment, gloss ': the tags in a head's { }, separated by commas; none if it has no { }."""
     if text is None:
         return ()
-    tags = tuple(text.split())
-    if not tags:
-        raise SynthesisError(f"row {row}: empty {{}} in a head")
+    tags = tuple(tag.strip() for tag in text.split(","))
     for tag in tags:
+        if not tag or any(character.isspace() for character in tag):
+            raise SynthesisError(
+                f"row {row}: {tag!r} is not a tag: write {{ comment, gloss }}"
+            )
         if tags.count(tag) > 1:
             raise SynthesisError(f"row {row}: {tag!r} is repeated")
     return tags
