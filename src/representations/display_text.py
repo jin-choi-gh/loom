@@ -1,3 +1,4 @@
+import re
 import unicodedata
 
 from models import (
@@ -11,6 +12,8 @@ from models import (
 from schemata.display import DISPLAY, EXACT, POEM, STANZA, lines_of
 from schemata.display import LINE as DISPLAY_LINE
 from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
+
+INDENT = re.compile(r"(?:\t| {4})*")
 
 
 class DisplayText(RepresentationFormat):
@@ -63,12 +66,13 @@ def describe_stanzas(source: str) -> tuple[UnitDescription, ...]:
 
 
 def describe_line(row: str, line_number: int, row_number: int) -> UnitDescription:
-    """One row as a line: its leading tabs are its indent."""
-    text = row.lstrip("\t")
-    indent = len(row) - len(text)
+    """One row as a line: its leading tabs, or fours of spaces, are its indent."""
+    leading = INDENT.match(row).group()
+    text = row[len(leading) :]
+    indent = len(leading.replace("    ", "\t"))
 
     if text[0].isspace():
-        raise SynthesisError(f"row {row_number}: indent with tabs, not spaces")
+        raise SynthesisError(f"row {row_number}: indent with tabs or four spaces")
     if text != text.rstrip():
         raise SynthesisError(f"row {row_number}: whitespace at the end of the line")
     if "\t" in text:
