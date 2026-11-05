@@ -20,7 +20,13 @@ def anchor(
     """Each annotation's targets found in the textual complex's substrate."""
     annotations: list[Annotation] = []
     errors: list[str] = []
+    possible_tags = textual_complex.metadata.notes.tags
     for description in descriptions:
+        for tag in description.tags:
+            if tag not in possible_tags:
+                errors.append(
+                    f"row {description.row}: {tag!r} is not among the tags in meta.toml"
+                )
         try:
             targets = tuple(
                 SpanTarget(anchor_target(target, textual_complex.substrate))
@@ -29,7 +35,7 @@ def anchor(
         except SynthesisError as error:
             errors.append(f"row {description.row}: {error}")
             continue
-        annotations.append(Annotation(targets, description.body))
+        annotations.append(Annotation(targets, description.body, description.tags))
     if errors:
         raise SynthesisError("\n".join(errors))
     return tuple(annotations)

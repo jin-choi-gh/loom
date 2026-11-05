@@ -9,7 +9,11 @@ from models import (
     TargetDescription,
 )
 
-OCCURRENCE = re.compile(r"(?P<quote>.+)\[(?P<n>\d+)\]")  # "ever[2]": a quote, then [n]
+# "ever[2]": a quote, then [n]
+OCCURRENCE = re.compile(r"(?P<quote>.+)\[(?P<n>\d+)\]")
+
+# "l1 true ] {gloss}": a head's targets, then perhaps its tags
+HEAD = re.compile(r"(?P<targets>.*) \](?: \{(?P<tags>[^{}]*)\})?")
 
 
 class NotesText(AnnotationFormat):
@@ -23,14 +27,14 @@ class NotesText(AnnotationFormat):
 def parse(text: str) -> tuple[AnnotationDescription, ...]:
     """A notes file as written: each head's targets and body."""
     descriptions: list[AnnotationDescription] = []
-    head: tuple[int, tuple[TargetDescription, ...]] | None = None
+    head: tuple[int, tuple[TargetDescription, ...], tuple[str, ...]] | None = None
     body: list[str] = []
 
     def finish_note() -> None:
         if head is not None:
-            row, targets = head
+            row, targets, tags = head
             text = textwrap.dedent("\n".join(body)).strip("\n")
-            descriptions.append(AnnotationDescription(row, targets, text))
+            descriptions.append(AnnotationDescription(row, targets, text, tags))
 
     for row, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
@@ -42,16 +46,30 @@ def parse(text: str) -> tuple[AnnotationDescription, ...]:
                 )
             body.append(line)
         else:
-            head_text = line.rstrip()
-            if not head_text.endswith(" ]"):
+            found = HEAD.fullmatch(line.rstrip())
+            if not found:
                 raise SynthesisError(
-                    f"row {row}: a line at the left edge must be a head end in ' ]'; "
-                    "indent it if it belongs to the note above"
+                    f"row {row}: a line at the left edge must be a head ending in ' ]' "
+                    "or ' ] {tags}'; indent it if it belongs to the note above"
                 )
             finish_note()
-            head, body = (row, parse_targets(head_text[: -len(" ]")], row)), []
+            targets = parse_targets(found["targets"], row)
+            head, body = (row, targets, parse_tags(found["tags"], row)), []
     finish_note()
     return tuple(descriptions)
+
+
+def parse_tags(text: str | None, row: int) -> tuple[str, ...]:
+    """'gloss form': the tags in a head's {...}; none if it has no {...}."""
+    if text is None:
+        return ()
+    tags = tuple(text.split())
+    if not tags:
+        raise SynthesisError(f"row {row}: empty {{}} in a head")
+    for tag in tags:
+        if tags.count(tag) > 1:
+            raise SynthesisError(f"row {row}: {tag!r} is repeated")
+    return tags
 
 
 def parse_targets(text: str, row: int) -> tuple[TargetDescription, ...]:
