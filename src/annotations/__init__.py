@@ -1,5 +1,6 @@
 from models import AnnotationFormat
 
-from .notes_text import NotesText
+from provisional.notes_text import ProvisionalNotesText
 
-ANNOTATION_FORMATS: tuple[AnnotationFormat, ...] = (NotesText(),)
+# Notes with @:ids supersede notes_text.NotesText while their syntax is on trial
+ANNOTATION_FORMATS: tuple[AnnotationFormat, ...] = (ProvisionalNotesText(),)

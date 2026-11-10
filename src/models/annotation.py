@@ -32,6 +32,7 @@ class AnnotationDescription:
     targets: tuple[TargetDescription, ...]
     body: str
     tags: tuple[str, ...] = ()
+    id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -48,3 +49,4 @@ class Annotation:
     targets: tuple[SpanTarget, ...]  # one or more, joined by && in the file
     body: str  # the note's text, its indentation removed
     tags: tuple[str, ...] = ()  # from its head's {...}; each declared in meta.toml
+    id: str | None = None

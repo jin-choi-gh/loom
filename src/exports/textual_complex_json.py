@@ -59,6 +59,7 @@ def atom_to_json(atom: Atom) -> dict:
 
 def annotation_to_json(annotation: Annotation) -> dict:
     return {
+        "id": annotation.id,
         "targets": [span_to_json(target.span) for target in annotation.targets],
         "tags": list(annotation.tags),
         "body": annotation.body,

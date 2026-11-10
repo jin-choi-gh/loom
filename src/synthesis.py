@@ -50,7 +50,8 @@ def show_annotations(textual_complex: TextualComplex) -> None:
                 repr(textual_complex.substrate.text_of(target.span))
                 for target in annotation.targets
             )
-            print(f"{number:<4} covers {covered}")
+            named = f"@{annotation.id} " if annotation.id else ""
+            print(f"{number:<4} {named}covers {covered}")
             for line in annotation.body.splitlines():
                 print(f"     {line}")
             print()
