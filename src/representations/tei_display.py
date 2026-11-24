@@ -10,7 +10,7 @@ from models import (
     SynthesisError,
     UnitDescription,
 )
-from schemata.display import DISPLAY, EXACT, HIGHLIGHT, POEM, STANZA, lines_of, text_of
+from schemata.display import DISPLAY, EXACT, HIGHLIGHT, POEM, STANZA, blocks_of, text_of
 from schemata.display import LINE as DISPLAY_LINE
 from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
 
@@ -37,7 +37,7 @@ class TeiDisplay(RepresentationFormat):
 
         display = describe_children(body)
 
-        tokens = describe_tokens(lines_of(display))
+        tokens = describe_tokens(blocks_of(display))
 
         return (
             SchemaDescription(DISPLAY, display, EXACT),
@@ -46,7 +46,7 @@ class TeiDisplay(RepresentationFormat):
 
     def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
         display = next(s for s in schemata if s.kind == DISPLAY)
-        return Substrate(lines=lines_of(display.descriptions))
+        return Substrate(blocks=blocks_of(display.descriptions))
 
 
 def describe_children(element: ET.Element) -> tuple[UnitDescription, ...]:

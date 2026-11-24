@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 
 from .annotation import Annotation
-from .core import Line, Span, Substrate
+from .core import Block, Span, Substrate
 from .metadata import Metadata
 from .schema import Schema, Unit
 
@@ -29,15 +29,15 @@ class TextualComplex:
     metadata: Metadata = field(default_factory=Metadata)
 
     @cached_property
-    def _atoms_by_line(self) -> dict[int, tuple[Atom, ...]]:
-        by_line: dict[int, list[Atom]] = {}
+    def _atoms_by_block(self) -> dict[int, tuple[Atom, ...]]:
+        by_block: dict[int, list[Atom]] = {}
         for atom in self.atoms:
-            by_line.setdefault(atom.span.start.line, []).append(atom)
-        return {line: tuple(atoms) for line, atoms in by_line.items()}
+            by_block.setdefault(atom.span.start.block, []).append(atom)
+        return {block: tuple(atoms) for block, atoms in by_block.items()}
 
-    def lines(self) -> Iterator[tuple[Line, tuple[Atom, ...]]]:
-        for index, line in enumerate(self.substrate.lines):
-            yield line, self._atoms_by_line.get(index, ())
+    def blocks(self) -> Iterator[tuple[Block, tuple[Atom, ...]]]:
+        for index, block in enumerate(self.substrate.blocks):
+            yield block, self._atoms_by_block.get(index, ())
 
     def units_of(self, atom: Atom, schema_name: str) -> tuple[Unit, ...]:
         """The atom's units in one schema: innermost first, then each parent up to the root."""

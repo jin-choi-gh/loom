@@ -15,7 +15,7 @@ class AnnotationFormat:
 
 @dataclass(frozen=True)
 class Locator:
-    line_id: str
+    block_id: str
     quote: str | None = None
     occurrence: int = 1
 

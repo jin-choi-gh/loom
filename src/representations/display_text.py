@@ -9,7 +9,7 @@ from models import (
     SynthesisError,
     UnitDescription,
 )
-from schemata.display import DISPLAY, EXACT, POEM, STANZA, lines_of
+from schemata.display import DISPLAY, EXACT, POEM, STANZA, blocks_of
 from schemata.display import LINE as DISPLAY_LINE
 from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
 
@@ -28,7 +28,7 @@ class DisplayText(RepresentationFormat):
 
         display = (UnitDescription(rank=POEM, content=stanzas, local_id="poem"),)
 
-        tokens = describe_tokens(lines_of(display))
+        tokens = describe_tokens(blocks_of(display))
 
         return (
             SchemaDescription(DISPLAY, display, EXACT),
@@ -37,7 +37,7 @@ class DisplayText(RepresentationFormat):
 
     def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
         display = next(s for s in schemata if s.kind == DISPLAY)
-        return Substrate(lines=lines_of(display.descriptions))
+        return Substrate(blocks=blocks_of(display.descriptions))
 
 
 def describe_stanzas(source: str) -> tuple[UnitDescription, ...]:

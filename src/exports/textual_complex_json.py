@@ -19,8 +19,8 @@ def textual_complex_to_json(textual_complex: TextualComplex) -> dict:
         "name": textual_complex.name,
         "metadata": asdict(textual_complex.metadata),
         "lines": [
-            {"id": line.id, "text": line.text}
-            for line in textual_complex.substrate.lines
+            {"id": block.id, "text": block.text}
+            for block in textual_complex.substrate.blocks
         ],
         "schemata": {
             name: schema_to_json(s) for name, s in textual_complex.schemata.items()
@@ -70,4 +70,4 @@ def span_to_json(span: Span) -> dict:
 
 
 def position_to_json(position: Position) -> list[int]:
-    return [position.line, position.offset]
+    return [position.block, position.offset]

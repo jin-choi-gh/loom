@@ -30,33 +30,33 @@ def match(
 class Matcher:
     def __init__(self, name: str, rule: MatchingRule, substrate: Substrate) -> None:
         self.name = name
-        self.lines = substrate.lines
+        self.blocks = substrate.blocks
         self.rule = rule
         self.cursor = Position(0, 0)
         self.units: list[Unit | None] = []
 
-    def at_line_end(self) -> bool:
-        return self.cursor.offset == len(self.lines[self.cursor.line].text)
+    def at_block_end(self) -> bool:
+        return self.cursor.offset == len(self.blocks[self.cursor.block].text)
 
     def at_end(self) -> bool:
-        return self.cursor.line == len(self.lines) - 1 and self.at_line_end()
+        return self.cursor.block == len(self.blocks) - 1 and self.at_block_end()
 
     def peek_at_char(self) -> str:
-        return self.lines[self.cursor.line].text[self.cursor.offset]
+        return self.blocks[self.cursor.block].text[self.cursor.offset]
 
     def advance(self) -> None:
-        if self.at_line_end():
-            self.cursor = Position(self.cursor.line + 1, 0)
+        if self.at_block_end():
+            self.cursor = Position(self.cursor.block + 1, 0)
         else:
-            self.cursor = Position(self.cursor.line, self.cursor.offset + 1)
+            self.cursor = Position(self.cursor.block, self.cursor.offset + 1)
 
     def label(self) -> str:
-        return f"{self.lines[self.cursor.line].id}@{self.cursor.offset}"
+        return f"{self.blocks[self.cursor.block].id}@{self.cursor.offset}"
 
     def skip(self) -> None:
-        """Step over line breaks, and whatever the rule allows between pieces."""
+        """Step over the breaks between blocks, and whatever the rule allows between pieces."""
         while not self.at_end():
-            if self.at_line_end() or self.rule.may_skip(self.peek_at_char()):
+            if self.at_block_end() or self.rule.may_skip(self.peek_at_char()):
                 self.advance()
             else:
                 break
@@ -68,11 +68,11 @@ class Matcher:
         start = self.cursor
         for c in text:
             if self.at_end():
-                raise SynthesisError(f"{text!r} runs past the end of the poem")
-            if self.at_line_end():
-                if self.rule.line_break_matches != c:
+                raise SynthesisError(f"{text!r} runs past the end of the text")
+            if self.at_block_end():
+                if self.rule.break_matches != c:
                     raise SynthesisError(
-                        f"{text!r} runs past the end of line {self.lines[self.cursor.line].id}"
+                        f"{text!r} runs past the end of {self.blocks[self.cursor.block].id}"
                     )
                 self.advance()
             elif self.rule.compare(c, self.peek_at_char()):
@@ -82,11 +82,11 @@ class Matcher:
         return Span(start, self.cursor)
 
     def mismatch(self, text: str, start: Position) -> SynthesisError:
-        line = self.lines[start.line]
-        found = line.text[start.offset : start.offset + len(text)]
+        block = self.blocks[start.block]
+        found = block.text[start.offset : start.offset + len(text)]
         return SynthesisError(
-            f"{text!r} does not match the poem at {self.label()}; "
-            f"from {line.id}@{start.offset} the poem reads {found!r}"
+            f"{text!r} does not match the text at {self.label()}; "
+            f"from {block.id}@{start.offset} the text reads {found!r}"
         )
 
     def description(self, d: UnitDescription, parent_id: str | None) -> Span:

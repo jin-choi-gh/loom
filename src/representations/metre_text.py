@@ -18,7 +18,7 @@ SYLLABLE_TEXT = re.compile(rf"{LETTER}+(?:['’]{LETTER}+)*")
 LETTERS = MatchingRule(
     compare=lambda a, b: a.casefold() == b.casefold(),
     may_skip=lambda c: not c.isalpha(),
-    line_break_matches=None,
+    break_matches=None,
 )
 
 

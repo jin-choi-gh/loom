@@ -13,7 +13,7 @@ META_FILE = "meta.toml"
 
 
 def show_textual_complex(textual_complex: TextualComplex) -> None:
-    """Every line's atoms, each with its innermost unit in every schema and, for every set of
+    """Every block's atoms, each with its innermost unit in every schema and, for every set of
     notes, the numbers of the notes covering it."""
     names = list(textual_complex.schemata)
     sets = list(textual_complex.annotations)
@@ -33,8 +33,8 @@ def show_textual_complex(textual_complex: TextualComplex) -> None:
         return " ".join(numbers) or "–"
 
     print(f"{'atom':12}" + "".join(f"{name:22}" for name in names + sets))
-    for line, atoms in textual_complex.lines():
-        print(f"── {line.id}: {line.text}")
+    for block, atoms in textual_complex.blocks():
+        print(f"── {block.id}: {block.text}")
         for atom in atoms:
             cells = [label(atom.innermost.get(name)) for name in names]
             cells += [covering(atom, name) for name in sets]

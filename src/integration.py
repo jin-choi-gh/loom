@@ -30,8 +30,8 @@ class AtomDraft:
 
     def finish(self, substrate: Substrate) -> Atom:
         """The finished, frozen atom."""
-        line = substrate.lines[self.span.start.line]
-        text = line.text[self.span.start.offset : self.span.end.offset]
+        block = substrate.blocks[self.span.start.block]
+        text = block.text[self.span.start.offset : self.span.end.offset]
         return Atom(
             span=self.span,
             text=text,
@@ -55,19 +55,19 @@ class AtomDrafts:
 
 
 def find_cuts(substrate: Substrate, schemata: dict[str, Schema]) -> list[set[int]]:
-    """For each line, every offset where a unit of any schema starts or ends, and both line ends."""
-    cuts = [{0, len(line.text)} for line in substrate.lines]
+    """For each block, every offset where a unit of any schema starts or ends, and both its ends."""
+    cuts = [{0, len(block.text)} for block in substrate.blocks]
     for schema in schemata.values():
         for unit in schema.units:
             for position in (unit.span.start, unit.span.end):
-                cuts[position.line].add(position.offset)
+                cuts[position.block].add(position.offset)
     return cuts
 
 
 def cut_atoms(substrate: Substrate, cuts: list[set[int]]) -> list[Span]:
-    """The atoms' spans: each line cut at its cuts, in reading order."""
+    """The atoms' spans: each block cut at its cuts, in reading order."""
     spans: list[Span] = []
-    for index, line in enumerate(substrate.lines):
+    for index, block in enumerate(substrate.blocks):
         offsets = sorted(cuts[index])
         for start, end in zip(offsets, offsets[1:]):
             spans.append(Span(Position(index, start), Position(index, end)))

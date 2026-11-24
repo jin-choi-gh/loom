@@ -140,5 +140,5 @@ class VariantTable:
 class MatchingRule:
     compare: Callable[[str, str], bool]
     may_skip: Callable[[str], bool]
-    line_break_matches: str | None
+    break_matches: str | None
     variants: VariantTable | None = None

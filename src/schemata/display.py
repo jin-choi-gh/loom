@@ -1,4 +1,4 @@
-from models import Line, MatchingRule, Rank, SchemaKind, UnitDescription
+from models import Block, MatchingRule, Rank, SchemaKind, UnitDescription
 
 POEM = Rank(name="poem")
 STANZA = Rank(name="stanza", parents=frozenset({"poem"}))
@@ -10,7 +10,7 @@ DISPLAY = SchemaKind(name="display", ranks=(POEM, STANZA, LINE, HIGHLIGHT))
 EXACT = MatchingRule(
     compare=lambda a, b: a == b,
     may_skip=lambda c: False,
-    line_break_matches=None,
+    break_matches=None,
 )
 
 
@@ -24,8 +24,8 @@ def walk(descriptions: tuple[UnitDescription, ...]):
         yield from walk(tuple(c for c in d.content if isinstance(c, UnitDescription)))
 
 
-def lines_of(descriptions: tuple[UnitDescription, ...]) -> tuple[Line, ...]:
-    """The poem's lines, in order: each line description's id and text."""
+def blocks_of(descriptions: tuple[UnitDescription, ...]) -> tuple[Block, ...]:
+    """The substrate's blocks, in order: each line description's id and text."""
     return tuple(
-        Line(d.local_id, text_of(d)) for d in walk(descriptions) if d.rank is LINE
+        Block(d.local_id, text_of(d)) for d in walk(descriptions) if d.rank is LINE
     )

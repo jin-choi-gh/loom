@@ -1,6 +1,6 @@
 import re
 
-from models import Line, MatchingRule, Rank, SchemaKind, UnitDescription
+from models import Block, MatchingRule, Rank, SchemaKind, UnitDescription
 
 LINE = Rank(name="line")
 WORD = Rank(name="word", parents=frozenset({"line"}))
@@ -9,7 +9,7 @@ WORD_TOKENS = SchemaKind(name="word-tokens", ranks=(LINE, WORD))
 WORDS = MatchingRule(
     compare=lambda a, b: a == b,
     may_skip=lambda c: not is_word_char(c),
-    line_break_matches=None,
+    break_matches=None,
 )
 
 # What a word is:
@@ -40,18 +40,18 @@ def is_word_char(c: str) -> bool:
     return c in AND_SIGNS or LETTERLIKE_CHAR.fullmatch(c) is not None
 
 
-def describe_words(text: str, line_id: str) -> tuple[UnitDescription, ...]:
-    """A line's words, in order, numbered l1.w1, l1.w2, ..., l2.w1, ..."""
+def describe_words(text: str, block_id: str) -> tuple[UnitDescription, ...]:
+    """A block's words, in order, numbered l1.w1, l1.w2, ..., l2.w1, ..."""
     return tuple(
-        UnitDescription(rank=WORD, content=(word,), local_id=f"{line_id}.w{number}")
+        UnitDescription(rank=WORD, content=(word,), local_id=f"{block_id}.w{number}")
         for number, word in enumerate(WORD_TEXT.findall(text), start=1)
     )
 
 
-def describe_tokens(lines: tuple[Line, ...]) -> tuple[UnitDescription, ...]:
-    """Each line that has words, holding its words; a line with none is left out."""
+def describe_tokens(blocks: tuple[Block, ...]) -> tuple[UnitDescription, ...]:
+    """Each block that has words, holding its words; a block with none is left out."""
     return tuple(
-        UnitDescription(rank=LINE, content=words, local_id=line.id)
-        for line in lines
-        if (words := describe_words(line.text, line.id))
+        UnitDescription(rank=LINE, content=words, local_id=block.id)
+        for block in blocks
+        if (words := describe_words(block.text, block.id))
     )
