@@ -35,9 +35,7 @@ def anchor(
         except SynthesisError as error:
             errors.append(f"row {description.row}: {error}")
             continue
-        annotations.append(
-            Annotation(targets, description.body, description.tags, description.id)
-        )
+        annotations.append(Annotation(targets, description.body, description.tags))
     if errors:
         raise SynthesisError("\n".join(errors))
     return tuple(annotations)
