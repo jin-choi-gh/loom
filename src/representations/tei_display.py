@@ -37,6 +37,8 @@ def describe_children(element: ET.Element) -> tuple[UnitDescription, ...]:
 
 def describe(element: ET.Element) -> tuple[UnitDescription, ...]:
     if element.tag == TEI + "div" and element.get("type") == "poem":
+        if not element.get(XML_ID):
+            raise SynthesisError("a poem has no xml:id")
         return (
             UnitDescription(
                 rank=VERSE_PASSAGE,

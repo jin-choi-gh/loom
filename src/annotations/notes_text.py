@@ -92,20 +92,20 @@ def parse_targets(text: str, row: int) -> tuple[TargetDescription, ...]:
 
 
 def parse_locator(text: str, row: int) -> Locator:
-    """'l1 ever[2]': a block id, then optionally a quote, then optionally [n]."""
-    block_id, _, rest = text.partition(" ")
-    if not block_id:
+    """'l1 ever[2]': a passage's or block's id, then optionally a quote, then optionally [n]."""
+    part_id, _, rest = text.partition(" ")
+    if not part_id:
         raise SynthesisError(f"row {row}: an empty target")
     if not rest:
-        return Locator(block_id)  # the whole block
+        return Locator(part_id)  # the whole passage or block
     if rest[0].isspace():
-        raise SynthesisError(f"row {row}: one space between {block_id} and its quote")
+        raise SynthesisError(f"row {row}: one space between {part_id} and its quote")
     found = OCCURRENCE.fullmatch(rest)
     if not found:
-        return Locator(block_id, rest)  # the first occurrence
+        return Locator(part_id, rest)  # the first occurrence
     n = int(found["n"])
     if n < 1:
         raise SynthesisError(f"row {row}: occurrences count from 1, not {n}")
     if found["quote"][-1].isspace():
         raise SynthesisError(f"row {row}: no space before [{n}]")
-    return Locator(block_id, found["quote"], n)
+    return Locator(part_id, found["quote"], n)

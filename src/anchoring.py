@@ -56,8 +56,18 @@ def anchor_target(target: TargetDescription, substrate: Substrate) -> Span:
 
 
 def anchor_locator(locator: Locator, substrate: Substrate) -> Span:
-    """Where a locator points: its whole block, or the n-th occurrence of its quote in that block."""
-    index = substrate.block_index(locator.block_id)
+    """Where a locator points: a whole passage or block, or the n-th occurrence of its quote in a
+    block."""
+    passage = substrate.passage_span(locator.part_id)
+    if passage is not None:
+        if locator.quote is not None:
+            raise SynthesisError(
+                f"{describe(locator)}: {locator.part_id} is a whole passage; "
+                "a quote must come from one of its lines or paragraphs"
+            )
+        return passage
+
+    index = substrate.block_index(locator.part_id)
     text = substrate.blocks[index].text
     if locator.quote is None:
         return Span(Position(index, 0), Position(index, len(text)))
@@ -68,7 +78,7 @@ def anchor_locator(locator: Locator, substrate: Substrate) -> Span:
         count = text.count(quote)
         found = "not in" if count == 0 else f"only {count} time(s) in"
         raise SynthesisError(
-            f"{describe(locator)}: {quote!r} is {found} {locator.block_id}: {text!r}"
+            f"{describe(locator)}: {quote!r} is {found} {locator.part_id}: {text!r}"
         )
     return Span(Position(index, start), Position(index, start + len(quote)))
 
@@ -84,8 +94,8 @@ def find_occurrence(text: str, quote: str, n: int) -> int | None:
 
 
 def describe(locator: Locator) -> str:
-    """A locator as it was written: l1 'ever'[2], or l13 for a whole block."""
+    """A locator as it was written: l1 'ever'[2], or l13 for a whole block, or bird for a whole passage."""
     if locator.quote is None:
-        return locator.block_id
+        return locator.part_id
     occurrence = f"[{locator.occurrence}]" if locator.occurrence != 1 else ""
-    return f"{locator.block_id} {locator.quote!r}{occurrence}"
+    return f"{locator.part_id} {locator.quote!r}{occurrence}"

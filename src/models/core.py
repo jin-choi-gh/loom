@@ -59,10 +59,10 @@ class Substrate:
             raise SynthesisError("the substrate has no passages")
 
         seen: set[str] = set()
-        for block in self.blocks:
-            if block.id in seen:
-                raise SynthesisError(f"two blocks are called {block.id}")
-            seen.add(block.id)
+        for part in (*self.passages, *self.blocks):
+            if part.id in seen:
+                raise SynthesisError(f"two parts of the text are called {part.id}")
+            seen.add(part.id)
 
     @cached_property
     def blocks(self) -> tuple[Block, ...]:
@@ -80,7 +80,8 @@ class Substrate:
         if index is None and len(self.passages) == 1:
             index = self._index_by_id.get(f"{self.passages[0].id}.{block_id}")
         if index is None:
-            raise SynthesisError(f"no block called {block_id}{self._hint(block_id)}")
+            hint = self._hint(block_id)
+            raise SynthesisError(f"nothing in the text is called {block_id}{hint}")
         return index
 
     def _hint(self, block_id: str) -> str:
@@ -89,6 +90,17 @@ class Substrate:
             if (full_id := f"{passage.id}.{block_id}") in self._index_by_id:
                 return f"; write its passage too, as in {full_id}"
         return ""
+
+    def passage_span(self, passage_id: str) -> Span | None:
+        """All of the passage with this id, or None if no passage has it."""
+        first = 0
+        for passage in self.passages:
+            last = first + len(passage.blocks) - 1
+            if passage.id == passage_id:
+                end = len(passage.blocks[-1].text)
+                return Span(Position(first, 0), Position(last, end))
+            first = last + 1
+        return None
 
     def text_of(self, span: Span) -> str:
         """The text a span covers. Across blocks, each block's part, joined by line breaks."""

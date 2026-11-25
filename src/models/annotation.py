@@ -15,7 +15,7 @@ class AnnotationFormat:
 
 @dataclass(frozen=True)
 class Locator:
-    block_id: str
+    part_id: str  # a passage's or a block's, as the note writes it
     quote: str | None = None
     occurrence: int = 1
 
