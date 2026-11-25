@@ -41,12 +41,22 @@ class Block:
 
 
 @dataclass(frozen=True)
-class Substrate:
+class Passage:
+    id: str
     blocks: tuple[Block, ...]
 
     def __post_init__(self) -> None:
         if not self.blocks:
-            raise SynthesisError("the substrate has no blocks")
+            raise SynthesisError(f"passage {self.id} has no blocks")
+
+
+@dataclass(frozen=True)
+class Substrate:
+    passages: tuple[Passage, ...]
+
+    def __post_init__(self) -> None:
+        if not self.passages:
+            raise SynthesisError("the substrate has no passages")
 
         seen: set[str] = set()
         for block in self.blocks:
@@ -55,14 +65,30 @@ class Substrate:
             seen.add(block.id)
 
     @cached_property
+    def blocks(self) -> tuple[Block, ...]:
+        """Every passage's blocks, in order. A position counts blocks here, through the whole text."""
+        return tuple(block for passage in self.passages for block in passage.blocks)
+
+    @cached_property
     def _index_by_id(self) -> dict[str, int]:
         return {block.id: index for index, block in enumerate(self.blocks)}
 
     def block_index(self, block_id: str) -> int:
-        try:
-            return self._index_by_id[block_id]
-        except KeyError:
-            raise SynthesisError(f"no block called {block_id}") from None
+        """Where the block with this id is. In a text of one passage, the passage's id may be left
+        out: l1 for bird.l1."""
+        index = self._index_by_id.get(block_id)
+        if index is None and len(self.passages) == 1:
+            index = self._index_by_id.get(f"{self.passages[0].id}.{block_id}")
+        if index is None:
+            raise SynthesisError(f"no block called {block_id}{self._hint(block_id)}")
+        return index
+
+    def _hint(self, block_id: str) -> str:
+        """For an id written without its passage: how it should have been written."""
+        for passage in self.passages:
+            if (full_id := f"{passage.id}.{block_id}") in self._index_by_id:
+                return f"; write its passage too, as in {full_id}"
+        return ""
 
     def text_of(self, span: Span) -> str:
         """The text a span covers. Across blocks, each block's part, joined by line breaks."""

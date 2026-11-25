@@ -20,7 +20,7 @@ class DisplayProseText(DisplayFormat):
 
 def describe_prose(rows: list[Row], ids: Ids) -> UnitDescription:
     """The rows as a passage of prose: its paragraphs divided by blank rows."""
-    passage_id = ids.next("pp")
+    passage_id = ids.passage("pp")
     paragraphs = tuple(describe_paragraph(group, ids) for group in groups_of(rows))
     if not paragraphs:
         raise SynthesisError("no paragraphs")

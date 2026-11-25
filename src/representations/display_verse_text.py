@@ -19,7 +19,7 @@ class DisplayVerseText(DisplayFormat):
 
 def describe_verse(rows: list[Row], ids: Ids) -> UnitDescription:
     """The rows as a passage of verse: its stanzas divided by blank rows, each row a line."""
-    passage_id = ids.next("vp")
+    passage_id = ids.passage("vp")
     stanzas = tuple(describe_stanza(group, ids) for group in groups_of(rows))
     if not stanzas:
         raise SynthesisError("no lines")

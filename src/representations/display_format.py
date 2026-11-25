@@ -7,7 +7,7 @@ from models import (
     Substrate,
     UnitDescription,
 )
-from schemata.display import DISPLAY, EXACT, blocks_of
+from schemata.display import DISPLAY, EXACT, passages_of
 from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
 
 Row = tuple[int, str]  # a row's number in its file, and what it holds
@@ -24,7 +24,8 @@ class DisplayFormat(RepresentationFormat):
 
     def read(self, representation: Representation) -> tuple[SchemaDescription, ...]:
         display = self.describe(representation.source)
-        tokens = describe_tokens(blocks_of(display))
+        substrate = Substrate(passages_of(display))
+        tokens = describe_tokens(substrate.blocks)
         return (
             SchemaDescription(DISPLAY, display, EXACT),
             SchemaDescription(WORD_TOKENS, tokens, WORDS),
@@ -32,18 +33,25 @@ class DisplayFormat(RepresentationFormat):
 
     def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
         display = next(s for s in schemata if s.kind == DISPLAY)
-        return Substrate(blocks=blocks_of(display.descriptions))
+        return Substrate(passages_of(display.descriptions))
 
 
 class Ids:
-    """Local ids, numbered through the whole file: vp1, s1, l1, l2, ..., vp2, s2, l3, ..."""
+    """The local ids of one passage: s1, l1, l2, s2, l3, ... If the passage has a name, they begin
+    with it: bird.s1, bird.l1, ..."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str | None = None) -> None:
+        self.name = name
         self.counts: Counter[str] = Counter()
+
+    def passage(self, unnamed: str) -> str:
+        """The passage's own id: its name, or, if it has none, the id given."""
+        return unnamed if self.name is None else self.name
 
     def next(self, prefix: str) -> str:
         self.counts[prefix] += 1
-        return f"{prefix}{self.counts[prefix]}"
+        local_id = f"{prefix}{self.counts[prefix]}"
+        return local_id if self.name is None else f"{self.name}.{local_id}"
 
 
 def rows_of(source: str) -> list[Row]:

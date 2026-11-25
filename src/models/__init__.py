@@ -6,7 +6,7 @@ from .annotation import (
     SpanTarget,
     TargetDescription,
 )
-from .core import Block, Position, Span, Substrate, SynthesisError
+from .core import Block, Passage, Position, Span, Substrate, SynthesisError
 from .metadata import Metadata, NotesMetadata
 from .representation import Representation, RepresentationFormat
 from .schema import (
@@ -31,6 +31,7 @@ __all__ = [
     "MatchingRule",
     "Metadata",
     "NotesMetadata",
+    "Passage",
     "Position",
     "Rank",
     "Representation",
