@@ -2,9 +2,8 @@ import re
 
 from models import Block, MatchingRule, Rank, SchemaKind, UnitDescription
 
-LINE = Rank(name="line")
-WORD = Rank(name="word", parents=frozenset({"line"}))
-WORD_TOKENS = SchemaKind(name="word-tokens", ranks=(LINE, WORD))
+WORD = Rank(name="word")
+WORD_TOKENS = SchemaKind(name="word-tokens", ranks=(WORD,))
 
 WORDS = MatchingRule(
     compare=lambda a, b: a == b,
@@ -49,9 +48,7 @@ def describe_words(text: str, block_id: str) -> tuple[UnitDescription, ...]:
 
 
 def describe_tokens(blocks: tuple[Block, ...]) -> tuple[UnitDescription, ...]:
-    """Each block that has words, holding its words; a block with none is left out."""
+    """Every block's words, in order."""
     return tuple(
-        UnitDescription(rank=LINE, content=words, local_id=block.id)
-        for block in blocks
-        if (words := describe_words(block.text, block.id))
+        word for block in blocks for word in describe_words(block.text, block.id)
     )

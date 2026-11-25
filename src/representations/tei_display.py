@@ -2,17 +2,11 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 
-from models import (
-    Representation,
-    RepresentationFormat,
-    SchemaDescription,
-    Substrate,
-    SynthesisError,
-    UnitDescription,
-)
-from schemata.display import DISPLAY, EXACT, HIGHLIGHT, POEM, STANZA, blocks_of, text_of
-from schemata.display import LINE as DISPLAY_LINE
-from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
+from models import SynthesisError, UnitDescription
+from schemata.display import text_of
+from schemata.display_poem import HIGHLIGHT, LINE, POEM, STANZA
+
+from .display_format import DisplayFormat
 
 TEI = "{http://www.tei-c.org/ns/1.0}"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
@@ -20,14 +14,13 @@ INDENT = re.compile(r"indent\(([^)]*)\)")
 INITIAL = re.compile(r"initial\(([^)]*)\)")
 
 
-class TeiDisplay(RepresentationFormat):
+class TeiDisplay(DisplayFormat):
     name = "tei-display"
     suffix = ".tei-display.xml"
-    can_be_base = True
 
-    def read(self, representation: Representation) -> tuple[SchemaDescription, ...]:
+    def describe(self, source: str) -> tuple[UnitDescription, ...]:
         try:
-            root = ET.fromstring(representation.source)
+            root = ET.fromstring(source)
         except ET.ParseError as error:
             raise SynthesisError(f"not well-formed XML: {error}")
 
@@ -35,18 +28,7 @@ class TeiDisplay(RepresentationFormat):
         if body is None:
             raise SynthesisError("no <text>/<body> element")
 
-        display = describe_children(body)
-
-        tokens = describe_tokens(blocks_of(display))
-
-        return (
-            SchemaDescription(DISPLAY, display, EXACT),
-            SchemaDescription(WORD_TOKENS, tokens, WORDS),
-        )
-
-    def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
-        display = next(s for s in schemata if s.kind == DISPLAY)
-        return Substrate(blocks=blocks_of(display.descriptions))
+        return describe_children(body)
 
 
 def describe_children(element: ET.Element) -> tuple[UnitDescription, ...]:
@@ -84,7 +66,7 @@ def describe_line(element: ET.Element) -> UnitDescription:
     indent = match.group(1) if match else "0"
 
     line = UnitDescription(
-        rank=DISPLAY_LINE,
+        rank=LINE,
         content=describe_inline(element, line_id),
         value=indent,
         local_id=line_id,

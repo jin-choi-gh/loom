@@ -1,86 +1,56 @@
 import re
-import unicodedata
 
-from models import (
-    Representation,
-    RepresentationFormat,
-    SchemaDescription,
-    Substrate,
-    SynthesisError,
-    UnitDescription,
-)
-from schemata.display import DISPLAY, EXACT, POEM, STANZA, blocks_of
-from schemata.display import LINE as DISPLAY_LINE
-from schemata.word_tokens import WORD_TOKENS, WORDS, describe_tokens
+from models import SynthesisError, UnitDescription
 
-INDENT = re.compile(r"(?:\t| {4})*")
+from .display_format import DisplayFormat, Ids, Row, rows_of
+from .display_poem_text import describe_poem
+from .display_prose_text import describe_prose
+
+DESCRIBERS = {"[ poem ]": describe_poem, "[ prose ]": describe_prose}
+HEADINGS = " or ".join(DESCRIBERS)  # for errors: "[ poem ] or [ prose ]"
+
+# A row written as a heading is, whether or not loom knows it: [ peom ], [poem]. [Exit] is text.
+HEADING = re.compile(r"\[ .* \]|\[\s*(?:poem|prose)\s*\]", re.IGNORECASE)
 
 
-class DisplayText(RepresentationFormat):
+class DisplayText(DisplayFormat):
     name = "display-text"
     suffix = ".display.txt"
-    can_be_base = True
 
-    def read(self, representation: Representation) -> tuple[SchemaDescription, ...]:
-        stanzas = describe_stanzas(representation.source)
-        if not stanzas:
-            raise SynthesisError("no lines")
-
-        display = (UnitDescription(rank=POEM, content=stanzas, local_id="poem"),)
-
-        tokens = describe_tokens(blocks_of(display))
-
-        return (
-            SchemaDescription(DISPLAY, display, EXACT),
-            SchemaDescription(WORD_TOKENS, tokens, WORDS),
+    def describe(self, source: str) -> tuple[UnitDescription, ...]:
+        ids = Ids()
+        return tuple(
+            describe_excerpt(heading, rows, ids)
+            for heading, rows in excerpts_of(rows_of(source))
         )
 
-    def transcribe(self, schemata: tuple[SchemaDescription, ...]) -> Substrate:
-        display = next(s for s in schemata if s.kind == DISPLAY)
-        return Substrate(blocks=blocks_of(display.descriptions))
 
-
-def describe_stanzas(source: str) -> tuple[UnitDescription, ...]:
-    """The stanzas, divided by blank rows; lines numbered l1, l2, ... through the poem."""
-    stanzas: list[UnitDescription] = []
-    lines: list[UnitDescription] = []
-    line_count = 0
-
-    def close_stanza() -> None:
-        if lines:
-            stanzas.append(
-                UnitDescription(
-                    rank=STANZA, content=tuple(lines), local_id=f"s{len(stanzas) + 1}"
-                )
+def excerpts_of(rows: list[Row]) -> list[tuple[Row, list[Row]]]:
+    """Each heading, with the rows under it."""
+    excerpts: list[tuple[Row, list[Row]]] = []
+    for row_number, row in rows:
+        if HEADING.fullmatch(row.strip()):
+            excerpts.append(((row_number, row.rstrip()), []))
+        elif excerpts:
+            excerpts[-1][1].append((row_number, row))
+        elif row.strip():
+            raise SynthesisError(
+                f"row {row_number}: text before the first heading; begin with {HEADINGS}, "
+                "or name the file display.poem.txt or display.prose.txt"
             )
-            lines.clear()
-
-    for row_number, row in enumerate(source.splitlines(), start=1):
-        if not row.strip():
-            close_stanza()
-            continue
-        line_count += 1
-        lines.append(describe_line(row, line_count, row_number))
-    close_stanza()
-    return tuple(stanzas)
+    if not excerpts:
+        raise SynthesisError("no text")
+    return excerpts
 
 
-def describe_line(row: str, line_number: int, row_number: int) -> UnitDescription:
-    """One row as a line: its leading tabs, or fours of spaces, are its indent."""
-    leading = INDENT.match(row).group()
-    text = row[len(leading) :]
-    indent = len(leading.replace("    ", "\t"))
-
-    if text[0].isspace():
-        raise SynthesisError(f"row {row_number}: indent with tabs or four spaces")
-    if text != text.rstrip():
-        raise SynthesisError(f"row {row_number}: whitespace at the end of the line")
-    if "\t" in text:
-        raise SynthesisError(f"row {row_number}: a tab inside the line")
-
-    return UnitDescription(
-        rank=DISPLAY_LINE,
-        content=(unicodedata.normalize("NFC", text),),
-        value=str(indent),
-        local_id=f"l{line_number}",
-    )
+def describe_excerpt(heading: Row, rows: list[Row], ids: Ids) -> UnitDescription:
+    """The rows under one heading, described as it says."""
+    row_number, name = heading
+    if name not in DESCRIBERS:
+        raise SynthesisError(
+            f"row {row_number}: {name!r} is not a heading; write {HEADINGS}, "
+            "at the left edge"
+        )
+    if not any(row.strip() for _, row in rows):
+        raise SynthesisError(f"row {row_number}: nothing under {name}")
+    return DESCRIBERS[name](rows, ids)
