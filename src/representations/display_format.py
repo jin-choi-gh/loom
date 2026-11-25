@@ -36,7 +36,7 @@ class DisplayFormat(RepresentationFormat):
 
 
 class Ids:
-    """Local ids, numbered through the whole file: poem1, s1, l1, l2, ..., poem2, s2, l3, ..."""
+    """Local ids, numbered through the whole file: vp1, s1, l1, l2, ..., vp2, s2, l3, ..."""
 
     def __init__(self) -> None:
         self.counts: Counter[str] = Counter()

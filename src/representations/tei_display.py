@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 from models import SynthesisError, UnitDescription
 from schemata.display import text_of
-from schemata.display_poem import HIGHLIGHT, LINE, POEM, STANZA
+from schemata.display_verse import HIGHLIGHT, LINE, STANZA, VERSE_PASSAGE
 
 from .display_format import DisplayFormat
 
@@ -39,7 +39,7 @@ def describe(element: ET.Element) -> tuple[UnitDescription, ...]:
     if element.tag == TEI + "div" and element.get("type") == "poem":
         return (
             UnitDescription(
-                rank=POEM,
+                rank=VERSE_PASSAGE,
                 content=describe_children(element),
                 local_id=element.get(XML_ID),
             ),

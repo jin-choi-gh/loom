@@ -1,6 +1,6 @@
 from models import Rank
 
-PROSE = Rank(name="prose")
-PARAGRAPH = Rank(name="paragraph", parents=frozenset({"prose"}))
+PROSE_PASSAGE = Rank(name="prose-passage")
+PARAGRAPH = Rank(name="paragraph", parents=frozenset({"prose-passage"}))
 
-DISPLAY_PROSE = (PROSE, PARAGRAPH)
+DISPLAY_PROSE = (PROSE_PASSAGE, PARAGRAPH)

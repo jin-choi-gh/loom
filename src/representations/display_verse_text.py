@@ -2,28 +2,28 @@ import re
 import unicodedata
 
 from models import SynthesisError, UnitDescription
-from schemata.display_poem import LINE, POEM, STANZA
+from schemata.display_verse import LINE, STANZA, VERSE_PASSAGE
 
 from .display_format import DisplayFormat, Ids, Row, groups_of, rows_of
 
 INDENT = re.compile(r"(?:\t| {4})*")
 
 
-class DisplayPoemText(DisplayFormat):
-    name = "display-poem-text"
-    suffix = ".display.poem.txt"
+class DisplayVerseText(DisplayFormat):
+    name = "display-verse-text"
+    suffix = ".display.verse.txt"
 
     def describe(self, source: str) -> tuple[UnitDescription, ...]:
-        return (describe_poem(rows_of(source), Ids()),)
+        return (describe_verse(rows_of(source), Ids()),)
 
 
-def describe_poem(rows: list[Row], ids: Ids) -> UnitDescription:
-    """The rows as one poem: its stanzas divided by blank rows, each row a line."""
-    poem_id = ids.next("poem")
+def describe_verse(rows: list[Row], ids: Ids) -> UnitDescription:
+    """The rows as a passage of verse: its stanzas divided by blank rows, each row a line."""
+    passage_id = ids.next("vp")
     stanzas = tuple(describe_stanza(group, ids) for group in groups_of(rows))
     if not stanzas:
         raise SynthesisError("no lines")
-    return UnitDescription(rank=POEM, content=stanzas, local_id=poem_id)
+    return UnitDescription(rank=VERSE_PASSAGE, content=stanzas, local_id=passage_id)
 
 
 def describe_stanza(rows: list[Row], ids: Ids) -> UnitDescription:

@@ -3,14 +3,14 @@ import re
 from models import SynthesisError, UnitDescription
 
 from .display_format import DisplayFormat, Ids, Row, rows_of
-from .display_poem_text import describe_poem
 from .display_prose_text import describe_prose
+from .display_verse_text import describe_verse
 
-DESCRIBERS = {"[ poem ]": describe_poem, "[ prose ]": describe_prose}
-HEADINGS = " or ".join(DESCRIBERS)  # for errors: "[ poem ] or [ prose ]"
+DESCRIBERS = {"[ verse ]": describe_verse, "[ prose ]": describe_prose}
+HEADINGS = " or ".join(DESCRIBERS)  # for errors: "[ verse ] or [ prose ]"
 
-# A row written as a heading is, whether or not loom knows it: [ peom ], [poem]. [Exit] is text.
-HEADING = re.compile(r"\[ .* \]|\[\s*(?:poem|prose)\s*\]", re.IGNORECASE)
+# A row written as a heading is, whether or not loom knows it: [ vrese ], [verse]. [Exit] is text.
+HEADING = re.compile(r"\[ .* \]|\[\s*(?:verse|prose)\s*\]", re.IGNORECASE)
 
 
 class DisplayText(DisplayFormat):
@@ -36,7 +36,7 @@ def excerpts_of(rows: list[Row]) -> list[tuple[Row, list[Row]]]:
         elif row.strip():
             raise SynthesisError(
                 f"row {row_number}: text before the first heading; begin with {HEADINGS}, "
-                "or name the file display.poem.txt or display.prose.txt"
+                "or name the file display.verse.txt or display.prose.txt"
             )
     if not excerpts:
         raise SynthesisError("no text")

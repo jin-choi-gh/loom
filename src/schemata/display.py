@@ -1,9 +1,9 @@
 from models import Block, MatchingRule, SchemaKind, UnitDescription
 
-from .display_poem import DISPLAY_POEM, LINE
 from .display_prose import DISPLAY_PROSE, PARAGRAPH
+from .display_verse import DISPLAY_VERSE, LINE
 
-DISPLAY = SchemaKind(name="display", ranks=DISPLAY_POEM + DISPLAY_PROSE)
+DISPLAY = SchemaKind(name="display", ranks=DISPLAY_VERSE + DISPLAY_PROSE)
 
 BLOCKS = (LINE, PARAGRAPH)  # the ranks whose units are the substrate's blocks
 
