@@ -1,15 +1,16 @@
 """A textual complex as JSON, so that it can be read by front-end apps.
 
-Positions are [line, offset]: the line's index in "lines", and a character offset within it.
+Positions are [block, offset]: the block's index, counted through every passage's blocks, and a
+character offset within it.
 Units are referred to by their local id, which is unique within their schema.
 """
 
 from dataclasses import asdict
 
-from models import Annotation, Atom, Position, Schema, Span, TextualComplex
+from models import Annotation, Atom, Passage, Position, Schema, Span, TextualComplex
 
 FORMAT = "loom-textual-complex"
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 
 def textual_complex_to_json(textual_complex: TextualComplex) -> dict:
@@ -18,9 +19,8 @@ def textual_complex_to_json(textual_complex: TextualComplex) -> dict:
         "format_version": FORMAT_VERSION,
         "name": textual_complex.name,
         "metadata": asdict(textual_complex.metadata),
-        "lines": [
-            {"id": block.id, "text": block.text}
-            for block in textual_complex.substrate.blocks
+        "passages": [
+            passage_to_json(passage) for passage in textual_complex.substrate.passages
         ],
         "schemata": {
             name: schema_to_json(s) for name, s in textual_complex.schemata.items()
@@ -30,6 +30,13 @@ def textual_complex_to_json(textual_complex: TextualComplex) -> dict:
             name: [annotation_to_json(a) for a in annotations]
             for name, annotations in textual_complex.annotations.items()
         },
+    }
+
+
+def passage_to_json(passage: Passage) -> dict:
+    return {
+        "id": passage.id,
+        "blocks": [{"id": block.id, "text": block.text} for block in passage.blocks],
     }
 
 
